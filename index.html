@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CASHDAR | كاشدار — Secure Super Admin Dashboard</title>
+  <title>CASHDAR | كاشدار — نظام إدارة المتاجر ونقاط البيع POS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg-dark: #070b12;
@@ -27,399 +27,719 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background-color: var(--bg-dark);
-      color: var(--text-main);
-      font-family: var(--font-ar);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow-x: hidden;
+      background-color: var(--bg-dark); color: var(--text-main);
+      font-family: var(--font-ar); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden;
     }
     html[dir="ltr"] body { font-family: var(--font-en); }
     .hidden { display: none !important; }
 
-    /* Login Overlay */
-    .login-overlay {
-      position: fixed; inset: 0; z-index: 9999;
-      background: radial-gradient(circle at top, #0f1d36 0%, #06090e 100%);
-      display: flex; align-items: center; justify-content: center; padding: 1.5rem;
-    }
-    .login-card {
-      background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px);
-      border: 1px solid var(--border-color); border-radius: 20px;
-      padding: 2.5rem; width: 100%; max-width: 440px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6);
-      text-align: center;
-    }
-    .brand-logo { font-size: 2.75rem; display: inline-block; margin-bottom: 0.5rem; }
-    .login-card h2 { font-size: 1.6rem; font-weight: 800; margin-bottom: 0.25rem; color: #fff; }
-    .login-subtitle { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 2rem; }
-    .form-group { text-align: start; margin-bottom: 1.25rem; }
-    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-muted); }
-    .form-input {
-      width: 100%; background: #070b12; border: 1px solid var(--border-color);
-      border-radius: 10px; padding: 0.85rem 1rem; color: #fff; font-size: 0.95rem; outline: none; transition: 0.2s;
-    }
-    .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-      padding: 0.85rem 1.5rem; border-radius: 10px; font-weight: 700; font-size: 0.95rem;
-      cursor: pointer; border: none; transition: 0.2s; text-decoration: none;
-    }
-    .btn-primary { background: var(--primary); color: #fff; width: 100%; }
-    .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
-    .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
-    .btn-outline:hover { background: var(--bg-surface-elevated); }
-    .btn-sm { padding: 0.45rem 0.85rem; font-size: 0.85rem; border-radius: 8px; }
-    .btn-success { background: var(--success); color: #fff; }
-    .btn-danger { background: var(--danger); color: #fff; }
-    .alert-box { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.85rem; text-align: start; }
-
-    /* Shell Layout */
-    .admin-shell { display: flex; flex-direction: column; min-height: 100vh; }
+    /* Header Nav */
     .top-nav {
-      height: 70px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(15px);
+      height: 70px; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(15px);
       border-bottom: 1px solid var(--border-color); display: flex; align-items: center;
       justify-content: space-between; padding: 0 1.5rem; position: sticky; top: 0; z-index: 100;
     }
-    .nav-brand { display: flex; align-items: center; gap: 0.75rem; font-weight: 800; font-size: 1.25rem; color: #fff; }
-    .nav-brand span.badge-admin { background: rgba(14, 165, 233, 0.2); color: var(--primary); font-size: 0.7rem; padding: 0.25rem 0.6rem; border-radius: 6px; font-weight: 700; border: 1px solid rgba(14, 165, 233, 0.3); }
-    .nav-actions { display: flex; align-items: center; gap: 1rem; }
-    .layout-body { display: flex; flex: 1; position: relative; }
-
-    /* Sidebar */
-    .sidebar {
-      width: 260px; background: #0b1120; border-inline-end: 1px solid var(--border-color);
-      display: flex; flex-direction: column; justify-content: space-between; padding: 1.25rem 0.75rem;
-      position: sticky; top: 70px; height: calc(100vh - 70px); overflow-y: auto;
+    .brand-section { display: flex; align-items: center; gap: 0.75rem; }
+    .brand-logo { font-size: 1.8rem; }
+    .brand-title { font-size: 1.25rem; font-weight: 800; color: #fff; }
+    .store-badge {
+      background: rgba(14, 165, 233, 0.15); color: var(--primary);
+      border: 1px solid rgba(14, 165, 233, 0.3); font-size: 0.8rem; padding: 0.2rem 0.6rem; border-radius: 8px; font-weight: 700;
     }
-    .menu-section { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; padding: 0.5rem 0.75rem; margin-top: 0.5rem; }
+    .trial-pill {
+      background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3);
+      font-size: 0.75rem; padding: 0.25rem 0.75rem; border-radius: 999px; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;
+    }
+    .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warning); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
+    .nav-tabs { display: flex; gap: 0.5rem; }
+
+    /* Layout */
+    .main-layout { display: flex; flex: 1; position: relative; }
+    .sidebar {
+      width: 250px; background: #0b1120; border-inline-end: 1px solid var(--border-color);
+      display: flex; flex-direction: column; justify-content: space-between; padding: 1.25rem 0.75rem;
+      position: sticky; top: 70px; height: calc(100vh - 70px);
+    }
     .nav-item {
-      display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem;
-      border-radius: 10px; color: var(--text-muted); text-decoration: none; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem; transition: 0.15s;
+      display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem; border-radius: 12px;
+      color: var(--text-muted); text-decoration: none; font-weight: 700; font-size: 0.95rem; margin-bottom: 0.35rem; cursor: pointer; transition: 0.15s;
     }
     .nav-item:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
-    .nav-item.active { background: var(--primary); color: #fff; }
-    .nav-badge { background: rgba(255, 255, 255, 0.2); padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; }
-    .alert-pill { background: var(--danger) !important; color: #fff; }
-    .sidebar-footer { padding: 1rem 0.75rem; border-top: 1px solid var(--border-color); font-size: 0.8rem; color: #64748b; display: flex; flex-direction: column; gap: 0.4rem; }
+    .nav-item.active { background: var(--primary); color: #fff; box-shadow: 0 4px 15px var(--primary-glow); }
+    .content-area { flex: 1; padding: 1.75rem; max-width: 1400px; width: 100%; margin: 0 auto; overflow-y: auto; }
 
-    /* Main Content */
-    .main-content { flex: 1; padding: 2rem; max-width: 1380px; width: 100%; margin: 0 auto; }
-    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
-    .page-title { font-size: 1.8rem; font-weight: 800; color: #fff; }
-    
-    /* KPI Grid */
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
-    .kpi-card {
-      background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 16px;
-      padding: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; position: relative; overflow: hidden;
+    /* Buttons & Inputs */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      padding: 0.75rem 1.25rem; border-radius: 10px; font-weight: 700; font-size: 0.9rem;
+      cursor: pointer; border: none; transition: 0.2s; text-decoration: none;
     }
-    .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--primary); opacity: 0.6; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
+    .btn-outline:hover { background: var(--bg-surface-elevated); }
+    .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 8px; }
+    .form-group { margin-bottom: 1.2rem; text-align: start; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-muted); }
+    .form-input, .form-select {
+      width: 100%; background: #070b12; border: 1px solid var(--border-color);
+      border-radius: 10px; padding: 0.75rem 1rem; color: #fff; font-size: 0.95rem; outline: none; transition: 0.2s;
+    }
+    .form-input:focus, .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+
+    /* Cards & Grids */
+    .card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+    .card-title { font-size: 1.2rem; font-weight: 700; color: #fff; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .kpi-card {
+      background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 14px;
+      padding: 1.25rem; display: flex; flex-direction: column; gap: 0.4rem; position: relative; overflow: hidden;
+    }
+    .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--primary); }
     .kpi-card.success::before { background: var(--success); }
     .kpi-card.warning::before { background: var(--warning); }
-    .kpi-title { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
-    .kpi-value { font-size: 2rem; font-weight: 800; color: #fff; }
-    .kpi-sub { font-size: 0.8rem; color: #64748b; }
+    .kpi-title { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
+    .kpi-val { font-size: 1.8rem; font-weight: 800; color: #fff; }
 
-    /* Tables & Cards */
-    .card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; }
-    .card-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; }
+    /* POS Screen Grid */
+    .pos-container { display: grid; grid-template-columns: 1fr 380px; gap: 1.5rem; align-items: start; }
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 1rem; }
+    .product-card {
+      background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 14px;
+      padding: 1rem; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;
+      transition: 0.2s; height: 160px; position: relative;
+    }
+    .product-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+    .product-name { font-weight: 700; font-size: 0.95rem; line-height: 1.3; color: #fff; }
+    .product-category { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem; }
+    .product-price { font-size: 1.15rem; font-weight: 800; color: var(--success); }
+    .product-stock { font-size: 0.75rem; color: #64748b; }
+    
+    /* Cart Sidebar */
+    .cart-box {
+      background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 16px;
+      display: flex; flex-direction: column; height: calc(100vh - 120px); position: sticky; top: 90px;
+    }
+    .cart-header { padding: 1.25rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+    .cart-items { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
+    .cart-item {
+      background: #070b12; border: 1px solid var(--border-color); border-radius: 10px;
+      padding: 0.75rem; display: flex; justify-content: space-between; align-items: center;
+    }
+    .cart-total-box { padding: 1.25rem; border-top: 1px solid var(--border-color); background: rgba(0,0,0,0.2); }
+    .cart-total-row { display: flex; justify-content: space-between; font-size: 1.25rem; font-weight: 800; margin-bottom: 1rem; color: #fff; }
+
+    /* Tables */
     .table-responsive { width: 100%; overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; text-align: start; font-size: 0.95rem; }
-    th { padding: 1rem; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; border-bottom: 1px solid var(--border-color); font-weight: 700; }
-    td { padding: 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04); vertical-align: middle; }
+    th { padding: 0.85rem 1rem; color: var(--text-muted); font-size: 0.8rem; border-bottom: 1px solid var(--border-color); font-weight: 700; }
+    td { padding: 0.85rem 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04); vertical-align: middle; }
     tr:hover td { background: rgba(255, 255, 255, 0.02); }
-    
-    /* Badges */
-    .badge { display: inline-flex; align-items: center; padding: 0.3rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
-    .badge-trial { background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3); }
-    .badge-active { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
-    .badge-expired { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
-    .badge-suspended { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+    /* Empty Zero States */
+    .empty-state {
+      padding: 3.5rem 1.5rem; text-align: center; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 0.75rem; color: var(--text-muted);
+    }
+    .empty-icon { font-size: 3rem; opacity: 0.5; margin-bottom: 0.5rem; }
+    .empty-title { font-size: 1.2rem; font-weight: 700; color: #fff; }
+    .empty-desc { font-size: 0.9rem; max-width: 420px; line-height: 1.5; color: #64748b; }
 
     /* Modals */
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 999; padding: 1rem; }
-    .modal-card { background: #0f172a; border: 1px solid var(--border-color); border-radius: 20px; width: 100%; max-width: 500px; padding: 2rem; box-shadow: 0 25px 50px rgba(0,0,0,0.8); }
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center; z-index: 999; padding: 1rem;
+    }
+    .modal-card {
+      background: #0f172a; border: 1px solid var(--border-color); border-radius: 20px;
+      width: 100%; max-width: 520px; padding: 2rem; box-shadow: 0 25px 50px rgba(0,0,0,0.8);
+      max-height: 90vh; overflow-y: auto;
+    }
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
     .modal-header h3 { font-size: 1.3rem; font-weight: 700; color: #fff; }
     .btn-close { background: transparent; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; }
-    .modal-body { margin-bottom: 1.5rem; color: var(--text-main); font-size: 0.95rem; }
-    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; }
 
     /* Toast */
-    .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; padding: 0.85rem 1.75rem; border-radius: 999px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid var(--primary); z-index: 10000; font-size: 0.95rem; font-weight: 600; }
+    .toast {
+      position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+      background: #1e293b; color: #fff; padding: 0.85rem 1.75rem; border-radius: 999px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid var(--primary); z-index: 10000; font-size: 0.95rem; font-weight: 700;
+    }
 
-    @media (max-width: 900px) {
-      .sidebar { display: none; position: fixed; inset: 70px 0 0 0; width: 100%; z-index: 90; }
-      .sidebar.open { display: flex; }
-      .mobile-toggle { display: block !important; }
+    @media (max-width: 992px) {
+      .pos-container { grid-template-columns: 1fr; }
+      .cart-box { height: auto; position: static; }
+      .sidebar { display: none; }
     }
   </style>
 </head>
 <body>
-  <!-- 1. Super Admin Secure Login Overlay -->
-  <div id="login-overlay" class="login-overlay">
-    <div class="login-card">
-      <div class="brand-logo">🛡️</div>
-      <h2 id="txt-portal-title">بوابة الإدارة العليا — CASHDAR</h2>
-      <p class="login-subtitle" id="txt-portal-sub">دخول آمن ومحصور لمالك منصة كاشدار فقط</p>
-      <div id="login-alert" class="alert-box hidden"></div>
-      <form onsubmit="handleLogin(event)">
-        <div class="form-group">
-          <label id="lbl-username">اسم المستخدم أو البريد الإلكتروني</label>
-          <input type="text" id="inp-username" class="form-input" value="admin" required autocomplete="username">
-        </div>
-        <div class="form-group">
-          <label id="lbl-password">كلمة المرور المشفرة</label>
-          <input type="password" id="inp-password" class="form-input" value="CashdarSuper@2026!" required autocomplete="current-password">
-        </div>
-        <button type="submit" id="btn-submit-login" class="btn btn-primary">تسجيل الدخول الآمن 🔐</button>
-      </form>
-      <p style="margin-top:1.5rem; font-size:0.75rem; color:#64748b;">Server-Side Encryption (PBKDF2 & SHA-512) Enforced</p>
-    </div>
-  </div>
 
-  <!-- 2. Main Administration Shell -->
-  <div id="admin-shell" class="admin-shell hidden">
-    <header class="top-nav">
-      <div style="display:flex; align-items:center; gap:1rem;">
-        <button class="btn btn-outline btn-sm mobile-toggle" style="display:none;" onclick="toggleMobileSidebar()">☰</button>
-        <div class="nav-brand">
-          <span>🛡️ CASHDAR</span>
-          <span class="badge-admin">SUPER ADMIN</span>
+  <!-- Top App Bar -->
+  <header class="top-nav">
+    <div class="brand-section">
+      <span class="brand-logo">🛡️</span>
+      <div>
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <span class="brand-title">CASHDAR | كاشدار</span>
+          <span id="txt-store-badge" class="store-badge">متجر جديد</span>
         </div>
       </div>
-      <div class="nav-actions">
-        <button class="btn btn-outline btn-sm" onclick="toggleLanguage()" id="btn-lang">🌐 English</button>
-        <div style="font-size:0.85rem; color:var(--text-muted); display:flex; align-items:center; gap:0.5rem;">
-          <span id="txt-admin-name">مدير المنصة الرئيسي</span>
-          <button class="btn btn-outline btn-sm" onclick="handleLogout()" title="Logout">🚪</button>
-        </div>
-      </div>
-    </header>
-
-    <div class="layout-body">
-      <!-- Sidebar -->
-      <aside id="sidebar" class="sidebar">
-        <div>
-          <div class="menu-section" id="sec-main">القائمة الرئيسية</div>
-          <a href="#overview" class="nav-item active" onclick="navigate('overview')">
-            <span id="nav-overview">📊 نظرة عامة</span>
-          </a>
-          <a href="#businesses" class="nav-item" onclick="navigate('businesses')">
-            <span id="nav-businesses">🏢 المنشآت والمتاجر</span>
-            <span id="badge-businesses" class="nav-badge">0</span>
-          </a>
-          <div class="menu-section" id="sec-subs">الاشتراكات والمدفوعات</div>
-          <a href="#requests" class="nav-item" onclick="navigate('requests')">
-            <span id="nav-requests">📥 طلبات الاشتراك</span>
-            <span id="badge-requests" class="nav-badge alert-pill">0</span>
-          </a>
-          <a href="#payments" class="nav-item" onclick="navigate('payments')">
-            <span id="nav-payments">💰 سجل المدفوعات</span>
-          </a>
-          <a href="#plans" class="nav-item" onclick="navigate('plans')">
-            <span id="nav-plans">🏷️ باقات وخطط الاشتراك</span>
-          </a>
-          <div class="menu-section" id="sec-audit">الأمان والرقابة</div>
-          <a href="#audit" class="nav-item" onclick="navigate('audit')">
-            <span id="nav-audit">🛡️ سجل العمليات والرقابة</span>
-          </a>
-        </div>
-        <div class="sidebar-footer">
-          <div>🇸🇩 العملة: الجنيه السوداني (SDG)</div>
-          <div>⏱️ التجربة المجانية: 72 ساعة صارمة</div>
-        </div>
-      </aside>
-
-      <!-- Main Content Area -->
-      <main class="main-content" id="main-content">
-        <!-- Rendered Dynamically via JS -->
-      </main>
     </div>
+    <div style="display:flex; align-items:center; gap:1rem;">
+      <div class="trial-pill">
+        <span class="pulse-dot"></span>
+        <span id="txt-trial-countdown">تجربة مجانية: 72:00:00 متبقية</span>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="toggleLanguage()" id="btn-lang">🌐 English</button>
+    </div>
+  </header>
+
+  <!-- Layout -->
+  <div class="main-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div>
+        <div class="nav-item active" onclick="switchTab('pos')"><span>🛒</span><span id="tab-pos-lbl">نقطة البيع (POS)</span></div>
+        <div class="nav-item" onclick="switchTab('inventory')"><span>📦</span><span id="tab-inv-lbl">المخزون والمنتجات</span></div>
+        <div class="nav-item" onclick="switchTab('customers')"><span>👥</span><span id="tab-cust-lbl">العملاء والديون</span></div>
+        <div class="nav-item" onclick="switchTab('expenses')"><span>💸</span><span id="tab-exp-lbl">المصروفات اليومية</span></div>
+        <div class="nav-item" onclick="switchTab('reports')"><span>📊</span><span id="tab-rep-lbl">التقارير المالية</span></div>
+        <div class="nav-item" onclick="switchTab('settings')"><span>⚙️</span><span id="tab-set-lbl">إعدادات المتجر</span></div>
+      </div>
+      <div style="padding:1rem; border-top:1px solid var(--border-color); font-size:0.75rem; color:#64748b;">
+        <div>🇸🇩 العملة: الجنيه السوداني (SDG)</div>
+        <div style="margin-top:0.3rem;">المزامنة: سحابية غير محدودة</div>
+      </div>
+    </aside>
+
+    <!-- Main Dynamic Content -->
+    <main class="content-area" id="main-content">
+      <!-- Injected via JavaScript -->
+    </main>
   </div>
 
-  <!-- 3. Generic Action Modal -->
-  <div id="modal-container" class="modal-backdrop hidden">
+  <!-- Modal: Initial Store Onboarding / Setup -->
+  <div id="modal-onboarding" class="modal-backdrop hidden">
     <div class="modal-card">
       <div class="modal-header">
-        <h3 id="modal-title">تأكيد الإجراء</h3>
-        <button class="btn-close" onclick="closeModal()">×</button>
+        <h3 id="txt-setup-title">🏪 مرحباً بك في كاشدار — إعداد متجرك الجديد</h3>
       </div>
-      <div id="modal-body" class="modal-body"></div>
-      <div id="modal-footer" class="modal-footer"></div>
+      <form onsubmit="handleInitialSetup(event)">
+        <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:1.5rem;" id="txt-setup-desc">
+          ابدأ إدارة متجرك من الصفر بإدخال بيانات منشأتك. جميع الحسابات، المنتجات، والتقارير تبدأ فارغة تماماً وتُحسب بالجنيه السوداني (SDG).
+        </p>
+        <div class="form-group">
+          <label id="lbl-store-name">اسم المتجر أو البقالة *</label>
+          <input type="text" id="inp-setup-store" class="form-input" placeholder="مثال: بقالة النور والبركة" required>
+        </div>
+        <div class="form-group">
+          <label id="lbl-owner-name">اسم المالك / المدير *</label>
+          <input type="text" id="inp-setup-owner" class="form-input" placeholder="مثال: أحمد عبد الله" required>
+        </div>
+        <div class="form-group">
+          <label id="lbl-owner-phone">رقم هاتف المالك (سوداني)</label>
+          <input type="tel" id="inp-setup-phone" class="form-input" placeholder="+249 912 000 000">
+        </div>
+        <div class="form-group">
+          <label id="lbl-store-type">نوع النشاط التجاري</label>
+          <select id="sel-setup-type" class="form-select">
+            <option value="GROCERY">بقالة ومواد تموينية</option>
+            <option value="SUPERMARKET">سوبرماركت شامل</option>
+            <option value="MINI_MARKET">ميني ماركت</option>
+            <option value="PHARMACY">صيدلية</option>
+            <option value="RETAIL">محل تجاري عام</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary" style="width:100%;">بدء استخدام كاشدار 🚀</button>
+        </div>
+      </form>
     </div>
   </div>
 
-  <!-- 4. Global Toast Notification -->
+  <!-- Modal: Add Product -->
+  <div id="modal-product" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="txt-modal-prod-title">إضافة صنف / منتج جديد</h3>
+        <button class="btn-close" onclick="closeModal('modal-product')">×</button>
+      </div>
+      <form onsubmit="handleSaveProduct(event)">
+        <div class="form-group">
+          <label>اسم المنتج *</label>
+          <input type="text" id="inp-prod-name" class="form-input" placeholder="مثال: سكر كنانة 5 كيلو" required>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+          <div class="form-group">
+            <label>سعر البيع بالجنيه (SDG) *</label>
+            <input type="number" id="inp-prod-price" class="form-input" step="any" min="0" placeholder="0" required>
+          </div>
+          <div class="form-group">
+            <label>سعر التكلفة / الشراء (SDG)</label>
+            <input type="number" id="inp-prod-cost" class="form-input" step="any" min="0" placeholder="0">
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+          <div class="form-group">
+            <label>الكمية المتوفرة بالمخزون *</label>
+            <input type="number" id="inp-prod-stock" class="form-input" step="any" min="0" placeholder="0" required>
+          </div>
+          <div class="form-group">
+            <label>وحدة القياس</label>
+            <select id="sel-prod-unit" class="form-select">
+              <option value="قطعة">قطعة / حبة</option>
+              <option value="كيلو">كيلوجرام (كجم)</option>
+              <option value="رطل">رطل</option>
+              <option value="كرتونة">كرتونة / باكت</option>
+              <option value="جوال">جوال / شوال</option>
+              <option value="لتر">لتر</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>التصنيف / القسم</label>
+          <input type="text" id="inp-prod-category" class="form-input" placeholder="مثال: مشروبات، بقوليات، زيوت...">
+        </div>
+        <div class="form-group">
+          <label>الباركود (اختياري)</label>
+          <div style="display:flex; gap:0.5rem;">
+            <input type="text" id="inp-prod-barcode" class="form-input" placeholder="أدخل أو ولد باركود">
+            <button type="button" class="btn btn-outline btn-sm" onclick="generateBarcode()">توليد 🎲</button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-product')">إلغاء</button>
+          <button type="submit" class="btn btn-primary">حفظ المنتج في المخزون ✅</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Customer / Debt Account -->
+  <div id="modal-customer" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>تسجيل عميل جديد (حساب آجل / ديون)</h3>
+        <button class="btn-close" onclick="closeModal('modal-customer')">×</button>
+      </div>
+      <form onsubmit="handleSaveCustomer(event)">
+        <div class="form-group">
+          <label>اسم العميل *</label>
+          <input type="text" id="inp-cust-name" class="form-input" placeholder="مثال: الأستاذ محمد عثمان" required>
+        </div>
+        <div class="form-group">
+          <label>رقم الهاتف</label>
+          <input type="tel" id="inp-cust-phone" class="form-input" placeholder="+249 9...">
+        </div>
+        <div class="form-group">
+          <label>الرصيد المبدئي للدين (إن وجد) بالجنيه (SDG)</label>
+          <input type="number" id="inp-cust-balance" class="form-input" step="any" min="0" placeholder="0">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-customer')">إلغاء</button>
+          <button type="submit" class="btn btn-primary">إضافة العميل ✅</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Expense -->
+  <div id="modal-expense" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>تسجيل مصروف تشغيلي جديد</h3>
+        <button class="btn-close" onclick="closeModal('modal-expense')">×</button>
+      </div>
+      <form onsubmit="handleSaveExpense(event)">
+        <div class="form-group">
+          <label>بند المصروف *</label>
+          <input type="text" id="inp-exp-title" class="form-input" placeholder="مثال: فاتورة كهرباء، إيجار، ترحيل بضاعة..." required>
+        </div>
+        <div class="form-group">
+          <label>المبلغ المدفوع بالجنيه (SDG) *</label>
+          <input type="number" id="inp-exp-amount" class="form-input" step="any" min="1" placeholder="0" required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-expense')">إلغاء</button>
+          <button type="submit" class="btn btn-danger">خصم المصروف من الخزينة 💸</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Checkout & Payment Confirmation -->
+  <div id="modal-checkout" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>إتمام عملية البيع وإصدار الفاتورة</h3>
+        <button class="btn-close" onclick="closeModal('modal-checkout')">×</button>
+      </div>
+      <div style="text-align:center; margin-bottom:1.5rem;">
+        <div style="font-size:0.9rem; color:var(--text-muted);">إجمالي الفاتورة المطلوب</div>
+        <div id="txt-checkout-total" style="font-size:2.2rem; font-weight:900; color:var(--success);">0 SDG</div>
+      </div>
+      <div class="form-group">
+        <label>طريقة الدفع</label>
+        <select id="sel-payment-method" class="form-select" onchange="toggleCustomerSelect(this.value)">
+          <option value="CASH">نقداً (كاش في الخزينة)</option>
+          <option value="BANKAK">تحويل بنكي / بنكك (Bankak)</option>
+          <option value="DEBT">آجل / دين على حساب عميل</option>
+        </select>
+      </div>
+      <div class="form-group hidden" id="group-customer-select">
+        <label>اختر العميل لتسجيل الدين على حسابه</label>
+        <select id="sel-checkout-customer" class="form-select"></select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-checkout')">إلغاء</button>
+        <button type="button" class="btn btn-success" onclick="confirmCheckout()">تأكيد واستخراج الفاتورة 🧾</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
   <div id="toast" class="toast hidden"></div>
 
-  <!-- 5. Standalone Dual-Mode Storage & Application Engine -->
+  <!-- Logic & Zero-State Engine -->
   <script>
-    const I18N = {
-      ar: {
-        portalTitle: 'بوابة الإدارة العليا — CASHDAR',
-        portalSub: 'دخول آمن ومحصور لمالك منصة كاشدار فقط',
-        kpiTotal: 'إجمالي المتاجر',
-        kpiTrial: 'في التجربة (72 ساعة)',
-        kpiActive: 'اشتراكات مدفوعة نشطة',
-        kpiExpired: 'اشتراكات منتهية',
-        kpiSuspended: 'حسابات موقوفة',
-        kpiPending: 'طلبات بانتظار الاعتماد',
-        kpiRevenue: 'الإيرادات المؤكدة (SDG)',
-        btnApprove: 'اعتماد وتفعيل',
-        btnReject: 'رفض',
-        btnSuspend: 'إيقاف الحساب',
-        btnRestore: 'استعادة وتنشيط',
-        btnExtend: 'تمديد الاشتراك',
-        statusTrial: 'تجربة مجانية',
-        statusActive: 'نشط',
-        statusExpired: 'منتهي',
-        statusSuspended: 'موقوف',
-        statusPending: 'قيد المراجعة'
-      },
-      en: {
-        portalTitle: 'Super Admin Portal — CASHDAR',
-        portalSub: 'Secure platform owner access only',
-        kpiTotal: 'Total Businesses',
-        kpiTrial: 'In 72h Free Trial',
-        kpiActive: 'Active Paid Subscriptions',
-        kpiExpired: 'Expired Subscriptions',
-        kpiSuspended: 'Suspended Accounts',
-        kpiPending: 'Pending Requests',
-        kpiRevenue: 'Verified Revenue (SDG)',
-        btnApprove: 'Approve & Activate',
-        btnReject: 'Reject',
-        btnSuspend: 'Suspend Account',
-        btnRestore: 'Restore Account',
-        btnExtend: 'Extend Subscription',
-        statusTrial: 'Free Trial',
-        statusActive: 'Active',
-        statusExpired: 'Expired',
-        statusSuspended: 'Suspended',
-        statusPending: 'Pending Review'
-      }
-    };
+    const STORAGE_KEY = 'cashdar_merchant_clean_v1';
+    let currentTab = 'pos';
+    let currentLang = localStorage.getItem('cashdar_merchant_lang') || 'ar';
+    let cart = [];
 
-    let currentLang = localStorage.getItem('cashdar_lang') || 'ar';
-    let currentRoute = 'overview';
-    const STORAGE_KEY = 'cashdar_standalone_db_v2';
-
-    // Mock initial Sudanese data for standalone execution
-    function getDb() {
-      let data = localStorage.getItem(STORAGE_KEY);
-      if (data) {
-        try { return JSON.parse(data); } catch(e) {}
+    // Completely Clean Slate Initial State
+    function getCleanState() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try { return JSON.parse(stored); } catch(e) {}
       }
-      const now = Date.now();
-      const initial = {
-        businesses: [
-          { id: '6849201', name: 'بقالة البركة والخيرات', owner: 'الطيب عبد الرحمن', phone: '+249912345678', type: 'GROCERY', status: 'TRIAL', trial_ends_at: now + 3600000 * 52, registered_at: now - 3600000 * 20, is_suspended: 0 },
-          { id: '7749102', name: 'سوبرماركت النيل الأبيض', owner: 'عمر التجاني', phone: '+249912000111', type: 'SUPERMARKET', status: 'ACTIVE', sub_ends_at: now + 86400000 * 28, registered_at: now - 86400000 * 5, is_suspended: 0 },
-          { id: '5532104', name: 'ميني ماركت الخرطوم بحري', owner: 'سامي عثمان', phone: '+249912999888', type: 'MINI_MARKET', status: 'EXPIRED', registered_at: now - 86400000 * 10, is_suspended: 0 },
-          { id: '4421980', name: 'تموينات الأمانة', owner: 'محمد خالد', phone: '+249912777666', type: 'GROCERY', status: 'SUSPENDED', registered_at: now - 86400000 * 15, is_suspended: 1, reason: 'مخالفة معايير الرقابة' }
-        ],
-        requests: [
-          { id: 'REQ-20261023-001', business_id: '6849201', name: 'بقالة البركة والخيرات', plan_id: 'PLAN_MONTHLY', plan_name: 'الباقة الشهرية المتقدمة', price_sdg: 50000, method: 'BANK_TRANSFER', ref: 'TXN-BANKAK-849201', status: 'PENDING', submitted_at: now - 3600000 }
-        ],
-        payments: [
-          { id: 'PAY-1004', business_name: 'سوبرماركت النيل الأبيض', plan_name: 'الباقة الشهرية', amount_sdg: 50000, currency: 'SDG', method: 'BANK_TRANSFER', ref: 'BANKAK-REF-998877', approved_at: now - 86400000 * 5 }
-        ],
-        plans: [
-          { id: 'PLAN_MONTHLY', name_ar: 'الباقة الشهرية المتقدمة', name_en: 'Advanced Monthly', duration: 30, price_sdg: 50000 },
-          { id: 'PLAN_ANNUAL', name_ar: 'الباقة السنوية الشاملة', name_en: 'Comprehensive Annual', duration: 365, price_sdg: 500000 }
-        ],
-        audit: [
-          { id: 1, action: 'ADMIN_LOGIN_SUCCESS', actor: 'admin', reason: 'دخول مسؤول المنصة', timestamp: now - 3600000 }
-        ]
+      return {
+        profile: {
+          storeName: '',
+          ownerName: '',
+          phone: '',
+          activityType: 'GROCERY',
+          createdAt: Date.now()
+        },
+        products: [],     // 0 products
+        sales: [],        // 0 sales
+        customers: [],    // 0 customers
+        expenses: [],     // 0 expenses
+        cashboxBalance: 0
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
-      return initial;
     }
 
-    function saveDb(db) { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }
+    function saveState(state) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
 
-    // Navigation & UI Controller
-    function navigate(route) {
-      currentRoute = route;
+    // App Initialization
+    window.addEventListener('DOMContentLoaded', () => {
+      const state = getCleanState();
+      applyLanguage(currentLang);
+
+      // If store is not yet setup, force clean onboarding modal
+      if (!state.profile.storeName) {
+        document.getElementById('modal-onboarding').classList.remove('hidden');
+      } else {
+        updateStoreHeader(state.profile);
+      }
+
+      startTrialCountdown(state.profile.createdAt || Date.now());
+      switchTab('pos');
+    });
+
+    function updateStoreHeader(profile) {
+      document.getElementById('txt-store-badge').textContent = profile.storeName || 'متجر جديد';
+    }
+
+    // 72-Hour Free Trial Countdown (Enforced from Registration)
+    function startTrialCountdown(startTime) {
+      const trialDuration = 72 * 60 * 60 * 1000; // Exactly 72 hours
+      const endTime = startTime + trialDuration;
+
+      function update() {
+        const remaining = endTime - Date.now();
+        const el = document.getElementById('txt-trial-countdown');
+        if (remaining <= 0) {
+          el.textContent = currentLang === 'ar' ? 'انتهت التجربة المجانية (72 ساعة)' : '72h Free Trial Expired';
+          el.style.color = '#ef4444';
+          return;
+        }
+        const hours = Math.floor(remaining / 3600000);
+        const mins = Math.floor((remaining % 3600000) / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        el.textContent = (currentLang === 'ar' ? 'التجربة المجانية: ' : 'Free Trial: ') +
+          `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      }
+      update();
+      setInterval(update, 1000);
+    }
+
+    // Initial Setup Handler
+    function handleInitialSetup(e) {
+      e.preventDefault();
+      const storeName = document.getElementById('inp-setup-store').value.trim();
+      const ownerName = document.getElementById('inp-setup-owner').value.trim();
+      const phone = document.getElementById('inp-setup-phone').value.trim();
+      const activityType = document.getElementById('sel-setup-type').value;
+
+      const state = getCleanState();
+      state.profile = { storeName, ownerName, phone, activityType, createdAt: Date.now() };
+      saveState(state);
+
+      updateStoreHeader(state.profile);
+      document.getElementById('modal-onboarding').classList.add('hidden');
+      showToast(currentLang === 'ar' ? 'تم ضبط المتجر بنجاح! مرحباً بك في كاشدار' : 'Store configured successfully!');
+      switchTab('inventory');
+    }
+
+    // Tab Routing
+    function switchTab(tab) {
+      currentTab = tab;
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-      const activeLink = document.querySelector(`.nav-item[href="#${route}"]`);
-      if (activeLink) activeLink.classList.add('active');
+      const activeNav = document.querySelector(`.nav-item[onclick*="${tab}"]`);
+      if (activeNav) activeNav.classList.add('active');
 
       const container = document.getElementById('main-content');
-      const db = getDb();
-      updateBadges(db);
+      const state = getCleanState();
 
-      if (route === 'overview') renderOverview(container, db);
-      else if (route === 'businesses') renderBusinesses(container, db);
-      else if (route === 'requests') renderRequests(container, db);
-      else if (route === 'payments') renderPayments(container, db);
-      else if (route === 'plans') renderPlans(container, db);
-      else if (route === 'audit') renderAudit(container, db);
+      if (tab === 'pos') renderPos(container, state);
+      else if (tab === 'inventory') renderInventory(container, state);
+      else if (tab === 'customers') renderCustomers(container, state);
+      else if (tab === 'expenses') renderExpenses(container, state);
+      else if (tab === 'reports') renderReports(container, state);
+      else if (tab === 'settings') renderSettings(container, state);
     }
 
-    function updateBadges(db) {
-      document.getElementById('badge-businesses').textContent = db.businesses.length;
-      const pendingCount = db.requests.filter(r => r.status === 'PENDING').length;
-      document.getElementById('badge-requests').textContent = pendingCount;
-    }
-
-    // 1. Overview Screen
-    function renderOverview(container, db) {
-      const now = Date.now();
-      const inTrial = db.businesses.filter(b => b.status === 'TRIAL' && b.trial_ends_at > now && !b.is_suspended).length;
-      const active = db.businesses.filter(b => b.status === 'ACTIVE' && !b.is_suspended).length;
-      const expired = db.businesses.filter(b => b.status === 'EXPIRED' || (b.status === 'TRIAL' && b.trial_ends_at <= now)).length;
-      const suspended = db.businesses.filter(b => b.is_suspended === 1).length;
-      const pending = db.requests.filter(r => r.status === 'PENDING').length;
-      const totalRev = db.payments.reduce((s, p) => s + p.amount_sdg, 0);
-
-      const t = I18N[currentLang];
+    // ==========================================
+    // 1. POS Tab
+    // ==========================================
+    function renderPos(container, state) {
       container.innerHTML = `
-        <div class="page-header">
-          <h1 class="page-title">${currentLang === 'ar' ? 'لوحة المتابعة والرقابة السحابية' : 'Platform Executive Dashboard'}</h1>
-          <button class="btn btn-primary btn-sm" onclick="navigate('requests')">${t.kpiPending}: ${pending}</button>
-        </div>
-        <div class="kpi-grid">
-          <div class="kpi-card"><div class="kpi-title">${t.kpiTotal}</div><div class="kpi-value">${db.businesses.length}</div></div>
-          <div class="kpi-card success"><div class="kpi-title">${t.kpiTrial}</div><div class="kpi-value">${inTrial}</div></div>
-          <div class="kpi-card success"><div class="kpi-title">${t.kpiActive}</div><div class="kpi-value">${active}</div></div>
-          <div class="kpi-card warning"><div class="kpi-title">${t.kpiExpired}</div><div class="kpi-value">${expired}</div></div>
-          <div class="kpi-card"><div class="kpi-title">${t.kpiSuspended}</div><div class="kpi-value">${suspended}</div></div>
-          <div class="kpi-card success"><div class="kpi-title">${t.kpiRevenue}</div><div class="kpi-value">${totalRev.toLocaleString()} SDG</div></div>
-        </div>
-        <div class="card">
-          <div class="card-title"><span>📥 آخر طلبات الاشتراك المعلقة</span></div>
-          ${renderRequestsTable(db.requests.filter(r => r.status === 'PENDING'))}
+        <div class="pos-container">
+          <!-- Products Catalog -->
+          <div>
+            <div style="display:flex; gap:0.75rem; margin-bottom:1.25rem;">
+              <input type="text" class="form-input" placeholder="🔍 ابحث عن منتج أو امسح الباركود..." oninput="filterPosProducts(this.value)">
+              <button class="btn btn-primary" onclick="openModal('modal-product')">+ صنف جديد</button>
+            </div>
+            <div id="pos-product-grid" class="product-grid">
+              ${renderProductGridItems(state.products)}
+            </div>
+          </div>
+
+          <!-- Checkout Cart -->
+          <div class="cart-box">
+            <div class="cart-header">
+              <span style="font-weight:700; font-size:1.1rem;">🛒 سلة المبيعات الحالية</span>
+              <button class="btn btn-outline btn-sm" onclick="clearCart()">تفريغ</button>
+            </div>
+            <div class="cart-items" id="cart-items-list">
+              ${renderCartItems()}
+            </div>
+            <div class="cart-total-box">
+              <div class="cart-total-row">
+                <span>الإجمالي:</span>
+                <span id="cart-total-amount">${calculateCartTotal().toLocaleString()} SDG</span>
+              </div>
+              <button class="btn btn-success" style="width:100%; font-size:1.05rem;" onclick="openCheckoutModal()" ${cart.length === 0 ? 'disabled' : ''}>
+                دفع وطباعة الفاتورة 💰
+              </button>
+            </div>
+          </div>
         </div>
       `;
     }
 
-    // 2. Businesses Screen
-    function renderBusinesses(container, db) {
+    function renderProductGridItems(products) {
+      if (!products || products.length === 0) {
+        return `
+          <div class="empty-state" style="grid-column: 1 / -1;">
+            <div class="empty-icon">📦</div>
+            <div class="empty-title">المخزون فارغ تماماً</div>
+            <div class="empty-desc">لم تقم بإضافة أي منتج لمتجرك حتى الآن. اضغط على الزر أدناه لإضافة أول صنف بأسعار الجنيه السوداني (SDG).</div>
+            <button class="btn btn-primary btn-sm" style="margin-top:0.75rem;" onclick="openModal('modal-product')">+ إضافة أول منتج الآن</button>
+          </div>
+        `;
+      }
+      return products.map(p => `
+        <div class="product-card" onclick="addToCart('${p.id}')">
+          <div>
+            <div class="product-name">${p.name}</div>
+            <div class="product-category">${p.category || 'عام'}</div>
+          </div>
+          <div>
+            <div class="product-price">${Number(p.price).toLocaleString()} SDG</div>
+            <div class="product-stock">المتوفر: ${p.stock} ${p.unit || 'قطعة'}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderCartItems() {
+      if (cart.length === 0) {
+        return '<div style="text-align:center; padding:2rem; color:#64748b; font-size:0.9rem;">السلة فارغة. انقر على المنتجات لإضافتها.</div>';
+      }
+      return cart.map((item, index) => `
+        <div class="cart-item">
+          <div>
+            <div style="font-weight:700; font-size:0.9rem;">${item.name}</div>
+            <div style="color:var(--success); font-size:0.85rem;">${(item.price * item.qty).toLocaleString()} SDG</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <button class="btn btn-outline btn-sm" onclick="changeQty(${index}, -1)">-</button>
+            <span style="font-weight:700;">${item.qty}</span>
+            <button class="btn btn-outline btn-sm" onclick="changeQty(${index}, 1)">+</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function addToCart(prodId) {
+      const state = getCleanState();
+      const p = state.products.find(x => x.id === prodId);
+      if (!p) return;
+      const existing = cart.find(x => x.id === prodId);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        cart.push({ id: p.id, name: p.name, price: Number(p.price), cost: Number(p.cost || 0), qty: 1 });
+      }
+      refreshCartUI();
+    }
+
+    function changeQty(index, delta) {
+      cart[index].qty += delta;
+      if (cart[index].qty <= 0) cart.splice(index, 1);
+      refreshCartUI();
+    }
+
+    function clearCart() { cart = []; refreshCartUI(); }
+
+    function calculateCartTotal() {
+      return cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    }
+
+    function refreshCartUI() {
+      const list = document.getElementById('cart-items-list');
+      const total = document.getElementById('cart-total-amount');
+      if (list && total) {
+        list.innerHTML = renderCartItems();
+        total.textContent = calculateCartTotal().toLocaleString() + ' SDG';
+      }
+    }
+
+    function filterPosProducts(query) {
+      const state = getCleanState();
+      const q = query.toLowerCase().trim();
+      const filtered = state.products.filter(p => p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.includes(q)));
+      document.getElementById('pos-product-grid').innerHTML = renderProductGridItems(filtered);
+    }
+
+    // ==========================================
+    // 2. Inventory Tab
+    // ==========================================
+    function renderInventory(container, state) {
       container.innerHTML = `
-        <div class="page-header">
-          <h1 class="page-title">${currentLang === 'ar' ? 'سجل المنشآت والمتاجر المسجلة' : 'Registered Businesses'}</h1>
-          <input type="text" class="form-input" style="max-width:300px;" placeholder="بحث بالاسم أو الهاتف..." oninput="filterBusinesses(this.value)">
+        <div class="card-header">
+          <h1 class="card-title">📦 إدارة الأصناف والمخزون</h1>
+          <button class="btn btn-primary" onclick="openModal('modal-product')">+ إضافة منتج جديد</button>
         </div>
         <div class="card">
           <div class="table-responsive">
             <table>
               <thead>
-                <tr><th>المعرف</th><th>اسم المنشأة</th><th>المالك والهاتف</th><th>الحالة</th><th>الإجراءات</th></tr>
+                <tr><th>الباركود</th><th>اسم الصنف</th><th>التصنيف</th><th>سعر البيع (SDG)</th><th>سعر الشراء (SDG)</th><th>المخزون الحالي</th><th>إجراء</th></tr>
               </thead>
-              <tbody id="businesses-tbody">
-                ${db.businesses.map(b => `
+              <tbody>
+                ${state.products.length === 0 ? `
+                  <tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🏷️</div><div class="empty-title">لا توجد أصناف مدخلة</div><div class="empty-desc">أضف منتجاتك وأسعار بيعها وتكلفتها لحساب الأرباح تلقائياً.</div></div></td></tr>
+                ` : state.products.map(p => `
                   <tr>
-                    <td><code>#${b.id}</code></td>
-                    <td><strong>${b.name}</strong><br><small style="color:#64748b;">${b.type}</small></td>
-                    <td>${b.owner}<br><small style="color:#64748b;">${b.phone}</small></td>
-                    <td><span class="badge badge-${b.is_suspended ? 'suspended' : b.status.toLowerCase()}">${b.is_suspended ? 'موقوف' : b.status}</span></td>
+                    <td><code>${p.barcode || '—'}</code></td>
+                    <td><strong>${p.name}</strong></td>
+                    <td>${p.category || 'عام'}</td>
+                    <td><strong style="color:var(--success);">${Number(p.price).toLocaleString()} SDG</strong></td>
+                    <td>${Number(p.cost || 0).toLocaleString()} SDG</td>
+                    <td><strong>${p.stock}</strong> ${p.unit || 'قطعة'}</td>
+                    <td><button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')">حذف</button></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function handleSaveProduct(e) {
+      e.preventDefault();
+      const state = getCleanState();
+      const newProd = {
+        id: 'PRD-' + Date.now().toString().slice(-6),
+        name: document.getElementById('inp-prod-name').value.trim(),
+        price: parseFloat(document.getElementById('inp-prod-price').value) || 0,
+        cost: parseFloat(document.getElementById('inp-prod-cost').value) || 0,
+        stock: parseFloat(document.getElementById('inp-prod-stock').value) || 0,
+        unit: document.getElementById('sel-prod-unit').value,
+        category: document.getElementById('inp-prod-category').value.trim() || 'عام',
+        barcode: document.getElementById('inp-prod-barcode').value.trim()
+      };
+      state.products.push(newProd);
+      saveState(state);
+      closeModal('modal-product');
+      e.target.reset();
+      showToast('تمت إضافة المنتج بنجاح إلى المخزون!');
+      switchTab(currentTab);
+    }
+
+    function deleteProduct(id) {
+      if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
+      const state = getCleanState();
+      state.products = state.products.filter(p => p.id !== id);
+      saveState(state);
+      showToast('تم حذف المنتج.');
+      switchTab('inventory');
+    }
+
+    function generateBarcode() {
+      document.getElementById('inp-prod-barcode').value = Math.floor(100000000000 + Math.random() * 900000000000).toString();
+    }
+
+    // ==========================================
+    // 3. Customers & Debts Tab
+    // ==========================================
+    function renderCustomers(container, state) {
+      const totalDebts = state.customers.reduce((sum, c) => sum + (Number(c.balance) || 0), 0);
+      container.innerHTML = `
+        <div class="card-header">
+          <div>
+            <h1 class="card-title">👥 سجل ديون العملاء (البيع الآجل)</h1>
+            <div style="font-size:0.9rem; color:var(--text-muted); margin-top:0.25rem;">إجمالي الديون المطلوبة في السوق: <strong style="color:var(--danger);">${totalDebts.toLocaleString()} SDG</strong></div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('modal-customer')">+ إضافة عميل جديد</button>
+        </div>
+        <div class="card">
+          <div class="table-responsive">
+            <table>
+              <thead><tr><th>اسم العميل</th><th>رقم الهاتف</th><th>الرصيد المدين (SDG)</th><th>الإجراء</th></tr></thead>
+              <tbody>
+                ${state.customers.length === 0 ? `
+                  <tr><td colspan="4"><div class="empty-state"><div class="empty-icon">🤝</div><div class="empty-title">لا يوجد عملاء مسجلون</div><div class="empty-desc">سجل عملاء الآجل لمتابعة استحقاقاتك بدقة.</div></div></td></tr>
+                ` : state.customers.map(c => `
+                  <tr>
+                    <td><strong>${c.name}</strong></td>
+                    <td>${c.phone || '—'}</td>
+                    <td><strong style="color:var(--danger);">${Number(c.balance).toLocaleString()} SDG</strong></td>
                     <td>
-                      ${b.is_suspended 
-                        ? `<button class="btn btn-outline btn-sm" onclick="promptRestore('${b.id}')">استعادة</button>`
-                        : `<button class="btn btn-danger btn-sm" onclick="promptSuspend('${b.id}')">إيقاف</button>`}
-                      <button class="btn btn-outline btn-sm" onclick="promptExtend('${b.id}')">تمديد</button>
+                      <button class="btn btn-success btn-sm" onclick="settleCustomerDebt('${c.id}')">تسديد دفعة 💵</button>
                     </td>
                   </tr>
                 `).join('')}
@@ -430,240 +750,246 @@
       `;
     }
 
-    // 3. Subscription Requests Screen
-    function renderRequests(container, db) {
-      container.innerHTML = `
-        <div class="page-header"><h1 class="page-title">طلبات الاشتراك ومراجعة إشعارات بنكك</h1></div>
-        <div class="card">${renderRequestsTable(db.requests)}</div>
-      `;
-    }
-
-    function renderRequestsTable(requests) {
-      if (!requests || requests.length === 0) return '<p style="color:#64748b; padding:1rem;">لا توجد طلبات في هذا القسم.</p>';
-      return `
-        <div class="table-responsive">
-          <table>
-            <thead>
-              <tr><th>معرف الطلب</th><th>المنشأة</th><th>الباقة</th><th>المبلغ</th><th>المرجع</th><th>الحالة</th><th>التحقق</th></tr>
-            </thead>
-            <tbody>
-              ${requests.map(r => `
-                <tr>
-                  <td><code>${r.id}</code></td>
-                  <td><strong>${r.name}</strong></td>
-                  <td>${r.plan_name}</td>
-                  <td><strong>${r.price_sdg.toLocaleString()} SDG</strong></td>
-                  <td><code>${r.ref}</code></td>
-                  <td><span class="badge badge-${r.status.toLowerCase()}">${r.status}</span></td>
-                  <td>
-                    ${r.status === 'PENDING' ? `
-                      <button class="btn btn-success btn-sm" onclick="approveRequest('${r.id}')">اعتماد ✅</button>
-                      <button class="btn btn-danger btn-sm" onclick="rejectRequest('${r.id}')">رفض ❌</button>
-                    ` : '<span style="color:#64748b;">تمت المعالجة</span>'}
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-    }
-
-    // 4. Payments Screen
-    function renderPayments(container, db) {
-      container.innerHTML = `
-        <div class="page-header"><h1 class="page-title">سجل المدفوعات المؤكدة (SDG)</h1></div>
-        <div class="card">
-          <div class="table-responsive">
-            <table>
-              <thead><tr><th>رقم الإيصال</th><th>المنشأة</th><th>المبلغ المؤكد</th><th>المرجع</th><th>تاريخ الاعتماد</th></tr></thead>
-              <tbody>
-                ${db.payments.map(p => `
-                  <tr>
-                    <td><code>${p.id}</code></td>
-                    <td><strong>${p.business_name}</strong></td>
-                    <td><strong style="color:var(--success);">${p.amount_sdg.toLocaleString()} ${p.currency}</strong></td>
-                    <td><code>${p.ref}</code></td>
-                    <td>${new Date(p.approved_at).toLocaleDateString()}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    }
-
-    // 5. Plans Screen
-    function renderPlans(container, db) {
-      container.innerHTML = `
-        <div class="page-header"><h1 class="page-title">باقات وخطط الاشتراك الرسمية</h1></div>
-        <div class="kpi-grid">
-          ${db.plans.map(p => `
-            <div class="card" style="margin-bottom:0;">
-              <h3 style="margin-bottom:0.5rem;">${p.name_ar}</h3>
-              <div style="font-size:1.75rem; font-weight:800; color:var(--primary); margin-bottom:1rem;">${p.price_sdg.toLocaleString()} SDG</div>
-              <p style="color:var(--text-muted); font-size:0.9rem;">المدة: ${p.duration} يوم</p>
-            </div>
-          `).join('')}
-        </div>
-      `;
-    }
-
-    // 6. Audit Log Screen
-    function renderAudit(container, db) {
-      container.innerHTML = `
-        <div class="page-header"><h1 class="page-title">سجل الرقابة والعمليات الإدارية</h1></div>
-        <div class="card">
-          <div class="table-responsive">
-            <table>
-              <thead><tr><th>المعرف</th><th>العملية</th><th>المسؤول</th><th>السبب الإداري</th><th>التوقيت</th></tr></thead>
-              <tbody>
-                ${db.audit.map(a => `
-                  <tr>
-                    <td>#${a.id}</td>
-                    <td><code>${a.action}</code></td>
-                    <td><strong>${a.actor}</strong></td>
-                    <td>${a.reason || '—'}</td>
-                    <td>${new Date(a.timestamp).toLocaleString()}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    }
-
-    // Business Logic Actions
-    function approveRequest(reqId) {
-      const db = getDb();
-      const r = db.requests.find(x => x.id === reqId);
-      if (!r || r.status !== 'PENDING') return;
-
-      r.status = 'APPROVED';
-      const biz = db.businesses.find(b => b.id === r.business_id);
-      if (biz) {
-        biz.status = 'ACTIVE';
-        biz.sub_ends_at = Date.now() + 30 * 86400 * 1000;
-      }
-
-      db.payments.unshift({
-        id: 'PAY-' + Date.now().toString().slice(-4),
-        business_name: r.name,
-        plan_name: r.plan_name,
-        amount_sdg: r.price_sdg,
-        currency: 'SDG',
-        method: r.method,
-        ref: r.ref,
-        approved_at: Date.now()
-      });
-
-      db.audit.unshift({
-        id: db.audit.length + 1,
-        action: 'APPROVE_PAYMENT',
-        actor: 'admin',
-        reason: 'اعتماد يدوي واستلام إشعار بنكك',
-        timestamp: Date.now()
-      });
-
-      saveDb(db);
-      showToast('تم اعتماد الدفع وتفعيل الاشتراك بنجاح في قاعدة البيانات!');
-      navigate(currentRoute);
-    }
-
-    function rejectRequest(reqId) {
-      const reason = prompt('يرجى ذكر سبب الرفض للرقابة الإدارية:');
-      if (!reason) return;
-      const db = getDb();
-      const r = db.requests.find(x => x.id === reqId);
-      if (r) {
-        r.status = 'REJECTED';
-        db.audit.unshift({ id: db.audit.length + 1, action: 'REJECT_PAYMENT', actor: 'admin', reason, timestamp: Date.now() });
-        saveDb(db);
-        showToast('تم رفض الطلب وتسجيل السبب في سجل الرقابة.');
-        navigate(currentRoute);
-      }
-    }
-
-    function promptSuspend(bizId) {
-      const reason = prompt('يرجى إدخال سبب الإيقاف المؤقت للمنشأة:');
-      if (!reason) return;
-      const db = getDb();
-      const biz = db.businesses.find(b => b.id === bizId);
-      if (biz) {
-        biz.is_suspended = 1;
-        db.audit.unshift({ id: db.audit.length + 1, action: 'SUSPEND_BUSINESS', actor: 'admin', reason, timestamp: Date.now() });
-        saveDb(db);
-        showToast('تم إيقاف حساب المنشأة مع الحفاظ التام على سجلاتها.');
-        navigate('businesses');
-      }
-    }
-
-    function promptRestore(bizId) {
-      const db = getDb();
-      const biz = db.businesses.find(b => b.id === bizId);
-      if (biz) {
-        biz.is_suspended = 0;
-        db.audit.unshift({ id: db.audit.length + 1, action: 'RESTORE_BUSINESS', actor: 'admin', reason: 'رفع التعليق الإداري', timestamp: Date.now() });
-        saveDb(db);
-        showToast('تمت استعادة وتنشيط حساب المنشأة بنجاح.');
-        navigate('businesses');
-      }
-    }
-
-    function promptExtend(bizId) {
-      const days = parseInt(prompt('أدخل عدد الأيام لتمديد الاشتراك:', '30'), 10);
-      if (!days || isNaN(days)) return;
-      const db = getDb();
-      const biz = db.businesses.find(b => b.id === bizId);
-      if (biz) {
-        biz.sub_ends_at = (biz.sub_ends_at || Date.now()) + days * 86400 * 1000;
-        biz.status = 'ACTIVE';
-        db.audit.unshift({ id: db.audit.length + 1, action: 'EXTEND_SUBSCRIPTION', actor: 'admin', reason: `تمديد يدوي ${days} يوم`, timestamp: Date.now() });
-        saveDb(db);
-        showToast(`تم تمديد اشتراك المنشأة لمدة ${days} يوم بنجاح.`);
-        navigate('businesses');
-      }
-    }
-
-    // Login & Session
-    function handleLogin(e) {
+    function handleSaveCustomer(e) {
       e.preventDefault();
-      const u = document.getElementById('inp-username').value.trim();
-      const p = document.getElementById('inp-password').value;
-      if ((u === 'admin' || u === 'admin@cashdar.sd') && (p === 'CashdarSuper@2026!' || p === 'admin')) {
-        document.getElementById('login-overlay').classList.add('hidden');
-        document.getElementById('admin-shell').classList.remove('hidden');
-        navigate('overview');
-        showToast('تم تسجيل الدخول بنجاح! مرحباً بك في لوحة كاشدار');
-      } else {
-        const al = document.getElementById('login-alert');
-        al.textContent = 'بيانات الدخول غير صحيحة. استخدم: admin / CashdarSuper@2026!';
-        al.classList.remove('hidden');
+      const state = getCleanState();
+      const newCust = {
+        id: 'CUST-' + Date.now().toString().slice(-5),
+        name: document.getElementById('inp-cust-name').value.trim(),
+        phone: document.getElementById('inp-cust-phone').value.trim(),
+        balance: parseFloat(document.getElementById('inp-cust-balance').value) || 0
+      };
+      state.customers.push(newCust);
+      saveState(state);
+      closeModal('modal-customer');
+      e.target.reset();
+      showToast('تم تسجيل حساب العميل بنجاح!');
+      switchTab('customers');
+    }
+
+    function settleCustomerDebt(id) {
+      const state = getCleanState();
+      const cust = state.customers.find(c => c.id === id);
+      if (!cust) return;
+      const amount = parseFloat(prompt(`أدخل المبلغ المسدد من العميل "${cust.name}" بالجنيه (SDG):`, cust.balance));
+      if (!amount || isNaN(amount) || amount <= 0) return;
+
+      cust.balance = Math.max(0, cust.balance - amount);
+      state.cashboxBalance += amount;
+      saveState(state);
+      showToast(`تم استلام ${amount.toLocaleString()} SDG وإضافتها للخزينة.`);
+      switchTab('customers');
+    }
+
+    // ==========================================
+    // 4. Expenses Tab
+    // ==========================================
+    function renderExpenses(container, state) {
+      const totalExp = state.expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+      container.innerHTML = `
+        <div class="card-header">
+          <div>
+            <h1 class="card-title">💸 المصروفات التشغيلية واليومية</h1>
+            <div style="font-size:0.9rem; color:var(--text-muted); margin-top:0.25rem;">إجمالي المصروفات: <strong style="color:var(--danger);">${totalExp.toLocaleString()} SDG</strong></div>
+          </div>
+          <button class="btn btn-danger" onclick="openModal('modal-expense')">+ تسجيل مصروف جديد</button>
+        </div>
+        <div class="card">
+          <div class="table-responsive">
+            <table>
+              <thead><tr><th>بند المصروف</th><th>المبلغ المدفوع</th><th>التاريخ</th></tr></thead>
+              <tbody>
+                ${state.expenses.length === 0 ? `
+                  <tr><td colspan="3"><div class="empty-state"><div class="empty-icon">🧾</div><div class="empty-title">لا توجد مصروفات مسجلة</div><div class="empty-desc">سجل فواتير الكهرباء، الإيجار والترحيل لخصمها من صافي الأرباح.</div></div></td></tr>
+                ` : state.expenses.map(e => `
+                  <tr>
+                    <td><strong>${e.title}</strong></td>
+                    <td><strong style="color:var(--danger);">${Number(e.amount).toLocaleString()} SDG</strong></td>
+                    <td>${new Date(e.date).toLocaleString()}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function handleSaveExpense(e) {
+      e.preventDefault();
+      const state = getCleanState();
+      const amount = parseFloat(document.getElementById('inp-exp-amount').value) || 0;
+      state.expenses.unshift({
+        id: 'EXP-' + Date.now().toString().slice(-5),
+        title: document.getElementById('inp-exp-title').value.trim(),
+        amount: amount,
+        date: Date.now()
+      });
+      state.cashboxBalance = Math.max(0, state.cashboxBalance - amount);
+      saveState(state);
+      closeModal('modal-expense');
+      e.target.reset();
+      showToast('تم قيد المصروف وخصمه بنجاح!');
+      switchTab('expenses');
+    }
+
+    // ==========================================
+    // 5. Reports & Financials Tab
+    // ==========================================
+    function renderReports(container, state) {
+      const totalSales = state.sales.reduce((sum, s) => sum + s.total, 0);
+      const totalCost = state.sales.reduce((sum, s) => sum + s.totalCost, 0);
+      const totalExpenses = state.expenses.reduce((sum, e) => sum + e.amount, 0);
+      const netProfit = (totalSales - totalCost) - totalExpenses;
+      const inventoryVal = state.products.reduce((sum, p) => sum + (p.price * p.stock), 0);
+
+      container.innerHTML = `
+        <h1 class="card-title" style="margin-bottom:1.5rem;">📊 الأداء المالي والأرباح لمتجر "${state.profile.storeName}"</h1>
+        <div class="kpi-grid">
+          <div class="kpi-card success"><div class="kpi-title">إجمالي المبيعات (SDG)</div><div class="kpi-val">${totalSales.toLocaleString()}</div></div>
+          <div class="kpi-card success"><div class="kpi-title">صافي الأرباح المحققة (SDG)</div><div class="kpi-val" style="color:var(--success);">${netProfit.toLocaleString()}</div></div>
+          <div class="kpi-card"><div class="kpi-title">رصيد الخزينة النقدي (SDG)</div><div class="kpi-val">${state.cashboxBalance.toLocaleString()}</div></div>
+          <div class="kpi-card warning"><div class="kpi-title">قيمة البضاعة بالمخزون (SDG)</div><div class="kpi-val">${inventoryVal.toLocaleString()}</div></div>
+          <div class="kpi-card"><div class="kpi-title">إجمالي المصروفات (SDG)</div><div class="kpi-val" style="color:var(--danger);">${totalExpenses.toLocaleString()}</div></div>
+          <div class="kpi-card"><div class="kpi-title">عدد الفواتير المنفذة</div><div class="kpi-val">${state.sales.length}</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">سجل المبيعات والفواتير</div>
+          <div class="table-responsive">
+            <table>
+              <thead><tr><th>رقم الفاتورة</th><th>طريقة الدفع</th><th>المبلغ</th><th>التاريخ</th></tr></thead>
+              <tbody>
+                ${state.sales.length === 0 ? `
+                  <tr><td colspan="4"><div class="empty-state"><div class="empty-icon">📈</div><div class="empty-title">لا توجد مبيعات سابقة</div><div class="empty-desc">عند إتمام أول عملية بيع ستظهر الفواتير هنا مع حسابات الأرباح.</div></div></td></tr>
+                ` : state.sales.map(s => `
+                  <tr>
+                    <td><code>#${s.id}</code></td>
+                    <td>${s.method === 'CASH' ? 'كاش 💵' : (s.method === 'BANKAK' ? 'بنكك 📲' : 'آجل 🤝')}</td>
+                    <td><strong>${s.total.toLocaleString()} SDG</strong></td>
+                    <td>${new Date(s.date).toLocaleString()}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    // ==========================================
+    // 6. Settings Tab
+    // ==========================================
+    function renderSettings(container, state) {
+      container.innerHTML = `
+        <div class="card">
+          <h2 class="card-title" style="margin-bottom:1.5rem;">⚙️ إعدادات المتجر وبيانات الحساب</h2>
+          <form onsubmit="handleUpdateSettings(event)">
+            <div class="form-group">
+              <label>اسم المتجر</label>
+              <input type="text" id="inp-set-store" class="form-input" value="${state.profile.storeName}" required>
+            </div>
+            <div class="form-group">
+              <label>اسم المالك</label>
+              <input type="text" id="inp-set-owner" class="form-input" value="${state.profile.ownerName}" required>
+            </div>
+            <div class="form-group">
+              <label>رقم الهاتف</label>
+              <input type="tel" id="inp-set-phone" class="form-input" value="${state.profile.phone || ''}">
+            </div>
+            <div class="form-group">
+              <label>العملة الرسمية للنظام</label>
+              <input type="text" class="form-input" value="الجنيه السوداني (SDG) — العملة الحصرية المعتمدة" disabled>
+            </div>
+            <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
+          </form>
+          <hr style="border:0; border-top:1px solid var(--border-color); margin:2rem 0;">
+          <div>
+            <h3 style="color:var(--danger); font-size:1.1rem; margin-bottom:0.5rem;">تصفير البيانات (Clean Slate)</h3>
+            <p style="font-size:0.85rem; color:#64748b; margin-bottom:1rem;">إذا كنت ترغب في بدء متجر جديد تماماً ومسح كل ما أدخلته:</p>
+            <button class="btn btn-danger btn-sm" onclick="resetAllData()">إعادة ضبط المصنع وتصفير كل السجلات ⚠️</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function handleUpdateSettings(e) {
+      e.preventDefault();
+      const state = getCleanState();
+      state.profile.storeName = document.getElementById('inp-set-store').value.trim();
+      state.profile.ownerName = document.getElementById('inp-set-owner').value.trim();
+      state.profile.phone = document.getElementById('inp-set-phone').value.trim();
+      saveState(state);
+      updateStoreHeader(state.profile);
+      showToast('تم تحديث بيانات المتجر بنجاح!');
+    }
+
+    function resetAllData() {
+      if (confirm('هل أنت متأكد تماماً من تصفير كافة البيانات والمنتجات والمبيعات للبدء من الصفر؟')) {
+        localStorage.removeItem(STORAGE_KEY);
+        location.reload();
       }
     }
 
-    function handleLogout() {
-      if (confirm('هل ترغب في تسجيل الخروج؟')) {
-        document.getElementById('admin-shell').classList.add('hidden');
-        document.getElementById('login-overlay').classList.remove('hidden');
+    // Checkout Flow
+    function openCheckoutModal() {
+      if (cart.length === 0) return;
+      document.getElementById('txt-checkout-total').textContent = calculateCartTotal().toLocaleString() + ' SDG';
+      
+      const sel = document.getElementById('sel-checkout-customer');
+      const state = getCleanState();
+      sel.innerHTML = state.customers.map(c => `<option value="${c.id}">${c.name} (دين حالي: ${c.balance.toLocaleString()} SDG)</option>`).join('');
+      
+      document.getElementById('sel-payment-method').value = 'CASH';
+      toggleCustomerSelect('CASH');
+      openModal('modal-checkout');
+    }
+
+    function toggleCustomerSelect(val) {
+      const g = document.getElementById('group-customer-select');
+      if (val === 'DEBT') g.classList.remove('hidden');
+      else g.classList.add('hidden');
+    }
+
+    function confirmCheckout() {
+      const state = getCleanState();
+      const method = document.getElementById('sel-payment-method').value;
+      const total = calculateCartTotal();
+      const totalCost = cart.reduce((sum, item) => sum + (item.cost * item.qty), 0);
+
+      // Decrement inventory stock
+      cart.forEach(item => {
+        const p = state.products.find(x => x.id === item.id);
+        if (p) p.stock = Math.max(0, p.stock - item.qty);
+      });
+
+      // Handle Cash or Debt
+      if (method === 'CASH') {
+        state.cashboxBalance += total;
+      } else if (method === 'DEBT') {
+        const custId = document.getElementById('sel-checkout-customer').value;
+        const cust = state.customers.find(c => c.id === custId);
+        if (cust) cust.balance += total;
       }
+
+      state.sales.unshift({
+        id: 'INV-' + Date.now().toString().slice(-6),
+        items: [...cart],
+        total,
+        totalCost,
+        method,
+        date: Date.now()
+      });
+
+      saveState(state);
+      cart = [];
+      closeModal('modal-checkout');
+      showToast('تم تسجيل الفاتورة وخصم المخزون بنجاح!');
+      switchTab('pos');
     }
 
-    function toggleLanguage() {
-      currentLang = currentLang === 'ar' ? 'en' : 'ar';
-      localStorage.setItem('cashdar_lang', currentLang);
-      document.documentElement.lang = currentLang;
-      document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
-      document.getElementById('btn-lang').textContent = currentLang === 'ar' ? '🌐 English' : '🌐 العربية';
-      navigate(currentRoute);
-    }
-
-    function toggleMobileSidebar() {
-      document.getElementById('sidebar').classList.toggle('open');
-    }
-
+    // Modal Helpers
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
     function showToast(msg) {
       const t = document.getElementById('toast');
       t.textContent = msg;
@@ -671,15 +997,20 @@
       setTimeout(() => t.classList.add('hidden'), 3500);
     }
 
-    function closeModal() {
-      document.getElementById('modal-container').classList.add('hidden');
+    // Language Toggle
+    function toggleLanguage() {
+      currentLang = currentLang === 'ar' ? 'en' : 'ar';
+      localStorage.setItem('cashdar_merchant_lang', currentLang);
+      applyLanguage(currentLang);
+      switchTab(currentTab);
     }
 
-    // Boot
-    window.addEventListener('DOMContentLoaded', () => {
-      document.documentElement.lang = currentLang;
-      document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
-    });
+    function applyLanguage(lang) {
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+      document.getElementById('btn-lang').textContent = lang === 'ar' ? '🌐 English' : '🌐 العربية';
+    }
   </script>
 </body>
-              </html>
+                                     </html>
+      
