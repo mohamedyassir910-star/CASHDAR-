@@ -4,25 +4,682 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CASHDAR | كاشدار — Secure Super Admin Dashboard</title>
-  
-  <!-- Inlined Google Fonts & Web Manifest links -->
-  <link rel="icon" type="image/png" href="/icon.png">
-  
-  <!-- Inlined Full Production CSS Styles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    /* Dark Theme, M3 Design System, Responsive Glassmorphism, Arabic RTL/LTR Grid */
-    ... (Full styles including cards, KPI metrics, modals, tables, badges, and responsive layouts)
+    :root {
+      --bg-dark: #070b12;
+      --bg-surface: #0f172a;
+      --bg-surface-elevated: #1e293b;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --primary: #0ea5e9;
+      --primary-hover: #0284c7;
+      --primary-glow: rgba(14, 165, 233, 0.25);
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.2);
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --font-ar: 'Cairo', system-ui, sans-serif;
+      --font-en: 'Inter', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-ar);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+    html[dir="ltr"] body { font-family: var(--font-en); }
+    .hidden { display: none !important; }
+
+    /* Login Overlay */
+    .login-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: radial-gradient(circle at top, #0f1d36 0%, #06090e 100%);
+      display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+    }
+    .login-card {
+      background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px);
+      border: 1px solid var(--border-color); border-radius: 20px;
+      padding: 2.5rem; width: 100%; max-width: 440px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6);
+      text-align: center;
+    }
+    .brand-logo { font-size: 2.75rem; display: inline-block; margin-bottom: 0.5rem; }
+    .login-card h2 { font-size: 1.6rem; font-weight: 800; margin-bottom: 0.25rem; color: #fff; }
+    .login-subtitle { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 2rem; }
+    .form-group { text-align: start; margin-bottom: 1.25rem; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-muted); }
+    .form-input {
+      width: 100%; background: #070b12; border: 1px solid var(--border-color);
+      border-radius: 10px; padding: 0.85rem 1rem; color: #fff; font-size: 0.95rem; outline: none; transition: 0.2s;
+    }
+    .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      padding: 0.85rem 1.5rem; border-radius: 10px; font-weight: 700; font-size: 0.95rem;
+      cursor: pointer; border: none; transition: 0.2s; text-decoration: none;
+    }
+    .btn-primary { background: var(--primary); color: #fff; width: 100%; }
+    .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+    .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
+    .btn-outline:hover { background: var(--bg-surface-elevated); }
+    .btn-sm { padding: 0.45rem 0.85rem; font-size: 0.85rem; border-radius: 8px; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .alert-box { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.85rem; text-align: start; }
+
+    /* Shell Layout */
+    .admin-shell { display: flex; flex-direction: column; min-height: 100vh; }
+    .top-nav {
+      height: 70px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(15px);
+      border-bottom: 1px solid var(--border-color); display: flex; align-items: center;
+      justify-content: space-between; padding: 0 1.5rem; position: sticky; top: 0; z-index: 100;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 0.75rem; font-weight: 800; font-size: 1.25rem; color: #fff; }
+    .nav-brand span.badge-admin { background: rgba(14, 165, 233, 0.2); color: var(--primary); font-size: 0.7rem; padding: 0.25rem 0.6rem; border-radius: 6px; font-weight: 700; border: 1px solid rgba(14, 165, 233, 0.3); }
+    .nav-actions { display: flex; align-items: center; gap: 1rem; }
+    .layout-body { display: flex; flex: 1; position: relative; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px; background: #0b1120; border-inline-end: 1px solid var(--border-color);
+      display: flex; flex-direction: column; justify-content: space-between; padding: 1.25rem 0.75rem;
+      position: sticky; top: 70px; height: calc(100vh - 70px); overflow-y: auto;
+    }
+    .menu-section { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; padding: 0.5rem 0.75rem; margin-top: 0.5rem; }
+    .nav-item {
+      display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem;
+      border-radius: 10px; color: var(--text-muted); text-decoration: none; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem; transition: 0.15s;
+    }
+    .nav-item:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+    .nav-item.active { background: var(--primary); color: #fff; }
+    .nav-badge { background: rgba(255, 255, 255, 0.2); padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; }
+    .alert-pill { background: var(--danger) !important; color: #fff; }
+    .sidebar-footer { padding: 1rem 0.75rem; border-top: 1px solid var(--border-color); font-size: 0.8rem; color: #64748b; display: flex; flex-direction: column; gap: 0.4rem; }
+
+    /* Main Content */
+    .main-content { flex: 1; padding: 2rem; max-width: 1380px; width: 100%; margin: 0 auto; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+    .page-title { font-size: 1.8rem; font-weight: 800; color: #fff; }
+    
+    /* KPI Grid */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
+    .kpi-card {
+      background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 16px;
+      padding: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; position: relative; overflow: hidden;
+    }
+    .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--primary); opacity: 0.6; }
+    .kpi-card.success::before { background: var(--success); }
+    .kpi-card.warning::before { background: var(--warning); }
+    .kpi-title { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+    .kpi-value { font-size: 2rem; font-weight: 800; color: #fff; }
+    .kpi-sub { font-size: 0.8rem; color: #64748b; }
+
+    /* Tables & Cards */
+    .card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; }
+    .card-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; }
+    .table-responsive { width: 100%; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: start; font-size: 0.95rem; }
+    th { padding: 1rem; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; border-bottom: 1px solid var(--border-color); font-weight: 700; }
+    td { padding: 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04); vertical-align: middle; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+    
+    /* Badges */
+    .badge { display: inline-flex; align-items: center; padding: 0.3rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+    .badge-trial { background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3); }
+    .badge-active { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-expired { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-suspended { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+    /* Modals */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 999; padding: 1rem; }
+    .modal-card { background: #0f172a; border: 1px solid var(--border-color); border-radius: 20px; width: 100%; max-width: 500px; padding: 2rem; box-shadow: 0 25px 50px rgba(0,0,0,0.8); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .modal-header h3 { font-size: 1.3rem; font-weight: 700; color: #fff; }
+    .btn-close { background: transparent; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; }
+    .modal-body { margin-bottom: 1.5rem; color: var(--text-main); font-size: 0.95rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; padding: 0.85rem 1.75rem; border-radius: 999px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid var(--primary); z-index: 10000; font-size: 0.95rem; font-weight: 600; }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; position: fixed; inset: 70px 0 0 0; width: 100%; z-index: 90; }
+      .sidebar.open { display: flex; }
+      .mobile-toggle { display: block !important; }
+    }
   </style>
 </head>
 <body>
-  <!-- Complete Admin Shell & Login Overlay -->
-  <div id="app" class="app-container">
-    ... (All navigation, overview cards, businesses table, subscription requests, audit logs, and dialogs)
+  <!-- 1. Super Admin Secure Login Overlay -->
+  <div id="login-overlay" class="login-overlay">
+    <div class="login-card">
+      <div class="brand-logo">🛡️</div>
+      <h2 id="txt-portal-title">بوابة الإدارة العليا — CASHDAR</h2>
+      <p class="login-subtitle" id="txt-portal-sub">دخول آمن ومحصور لمالك منصة كاشدار فقط</p>
+      <div id="login-alert" class="alert-box hidden"></div>
+      <form onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label id="lbl-username">اسم المستخدم أو البريد الإلكتروني</label>
+          <input type="text" id="inp-username" class="form-input" value="admin" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label id="lbl-password">كلمة المرور المشفرة</label>
+          <input type="password" id="inp-password" class="form-input" value="CashdarSuper@2026!" required autocomplete="current-password">
+        </div>
+        <button type="submit" id="btn-submit-login" class="btn btn-primary">تسجيل الدخول الآمن 🔐</button>
+      </form>
+      <p style="margin-top:1.5rem; font-size:0.75rem; color:#64748b;">Server-Side Encryption (PBKDF2 & SHA-512) Enforced</p>
+    </div>
   </div>
 
-  <!-- Inlined JavaScript + Offline Dual-Mode Mock Backend Engine + API Handlers -->
+  <!-- 2. Main Administration Shell -->
+  <div id="admin-shell" class="admin-shell hidden">
+    <header class="top-nav">
+      <div style="display:flex; align-items:center; gap:1rem;">
+        <button class="btn btn-outline btn-sm mobile-toggle" style="display:none;" onclick="toggleMobileSidebar()">☰</button>
+        <div class="nav-brand">
+          <span>🛡️ CASHDAR</span>
+          <span class="badge-admin">SUPER ADMIN</span>
+        </div>
+      </div>
+      <div class="nav-actions">
+        <button class="btn btn-outline btn-sm" onclick="toggleLanguage()" id="btn-lang">🌐 English</button>
+        <div style="font-size:0.85rem; color:var(--text-muted); display:flex; align-items:center; gap:0.5rem;">
+          <span id="txt-admin-name">مدير المنصة الرئيسي</span>
+          <button class="btn btn-outline btn-sm" onclick="handleLogout()" title="Logout">🚪</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="layout-body">
+      <!-- Sidebar -->
+      <aside id="sidebar" class="sidebar">
+        <div>
+          <div class="menu-section" id="sec-main">القائمة الرئيسية</div>
+          <a href="#overview" class="nav-item active" onclick="navigate('overview')">
+            <span id="nav-overview">📊 نظرة عامة</span>
+          </a>
+          <a href="#businesses" class="nav-item" onclick="navigate('businesses')">
+            <span id="nav-businesses">🏢 المنشآت والمتاجر</span>
+            <span id="badge-businesses" class="nav-badge">0</span>
+          </a>
+          <div class="menu-section" id="sec-subs">الاشتراكات والمدفوعات</div>
+          <a href="#requests" class="nav-item" onclick="navigate('requests')">
+            <span id="nav-requests">📥 طلبات الاشتراك</span>
+            <span id="badge-requests" class="nav-badge alert-pill">0</span>
+          </a>
+          <a href="#payments" class="nav-item" onclick="navigate('payments')">
+            <span id="nav-payments">💰 سجل المدفوعات</span>
+          </a>
+          <a href="#plans" class="nav-item" onclick="navigate('plans')">
+            <span id="nav-plans">🏷️ باقات وخطط الاشتراك</span>
+          </a>
+          <div class="menu-section" id="sec-audit">الأمان والرقابة</div>
+          <a href="#audit" class="nav-item" onclick="navigate('audit')">
+            <span id="nav-audit">🛡️ سجل العمليات والرقابة</span>
+          </a>
+        </div>
+        <div class="sidebar-footer">
+          <div>🇸🇩 العملة: الجنيه السوداني (SDG)</div>
+          <div>⏱️ التجربة المجانية: 72 ساعة صارمة</div>
+        </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main class="main-content" id="main-content">
+        <!-- Rendered Dynamically via JS -->
+      </main>
+    </div>
+  </div>
+
+  <!-- 3. Generic Action Modal -->
+  <div id="modal-container" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-title">تأكيد الإجراء</h3>
+        <button class="btn-close" onclick="closeModal()">×</button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+      <div id="modal-footer" class="modal-footer"></div>
+    </div>
+  </div>
+
+  <!-- 4. Global Toast Notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- 5. Standalone Dual-Mode Storage & Application Engine -->
   <script>
-    ... (Full Standalone LocalStorage Engine + API Router + Translations + UI Controllers)
+    const I18N = {
+      ar: {
+        portalTitle: 'بوابة الإدارة العليا — CASHDAR',
+        portalSub: 'دخول آمن ومحصور لمالك منصة كاشدار فقط',
+        kpiTotal: 'إجمالي المتاجر',
+        kpiTrial: 'في التجربة (72 ساعة)',
+        kpiActive: 'اشتراكات مدفوعة نشطة',
+        kpiExpired: 'اشتراكات منتهية',
+        kpiSuspended: 'حسابات موقوفة',
+        kpiPending: 'طلبات بانتظار الاعتماد',
+        kpiRevenue: 'الإيرادات المؤكدة (SDG)',
+        btnApprove: 'اعتماد وتفعيل',
+        btnReject: 'رفض',
+        btnSuspend: 'إيقاف الحساب',
+        btnRestore: 'استعادة وتنشيط',
+        btnExtend: 'تمديد الاشتراك',
+        statusTrial: 'تجربة مجانية',
+        statusActive: 'نشط',
+        statusExpired: 'منتهي',
+        statusSuspended: 'موقوف',
+        statusPending: 'قيد المراجعة'
+      },
+      en: {
+        portalTitle: 'Super Admin Portal — CASHDAR',
+        portalSub: 'Secure platform owner access only',
+        kpiTotal: 'Total Businesses',
+        kpiTrial: 'In 72h Free Trial',
+        kpiActive: 'Active Paid Subscriptions',
+        kpiExpired: 'Expired Subscriptions',
+        kpiSuspended: 'Suspended Accounts',
+        kpiPending: 'Pending Requests',
+        kpiRevenue: 'Verified Revenue (SDG)',
+        btnApprove: 'Approve & Activate',
+        btnReject: 'Reject',
+        btnSuspend: 'Suspend Account',
+        btnRestore: 'Restore Account',
+        btnExtend: 'Extend Subscription',
+        statusTrial: 'Free Trial',
+        statusActive: 'Active',
+        statusExpired: 'Expired',
+        statusSuspended: 'Suspended',
+        statusPending: 'Pending Review'
+      }
+    };
+
+    let currentLang = localStorage.getItem('cashdar_lang') || 'ar';
+    let currentRoute = 'overview';
+    const STORAGE_KEY = 'cashdar_standalone_db_v2';
+
+    // Mock initial Sudanese data for standalone execution
+    function getDb() {
+      let data = localStorage.getItem(STORAGE_KEY);
+      if (data) {
+        try { return JSON.parse(data); } catch(e) {}
+      }
+      const now = Date.now();
+      const initial = {
+        businesses: [
+          { id: '6849201', name: 'بقالة البركة والخيرات', owner: 'الطيب عبد الرحمن', phone: '+249912345678', type: 'GROCERY', status: 'TRIAL', trial_ends_at: now + 3600000 * 52, registered_at: now - 3600000 * 20, is_suspended: 0 },
+          { id: '7749102', name: 'سوبرماركت النيل الأبيض', owner: 'عمر التجاني', phone: '+249912000111', type: 'SUPERMARKET', status: 'ACTIVE', sub_ends_at: now + 86400000 * 28, registered_at: now - 86400000 * 5, is_suspended: 0 },
+          { id: '5532104', name: 'ميني ماركت الخرطوم بحري', owner: 'سامي عثمان', phone: '+249912999888', type: 'MINI_MARKET', status: 'EXPIRED', registered_at: now - 86400000 * 10, is_suspended: 0 },
+          { id: '4421980', name: 'تموينات الأمانة', owner: 'محمد خالد', phone: '+249912777666', type: 'GROCERY', status: 'SUSPENDED', registered_at: now - 86400000 * 15, is_suspended: 1, reason: 'مخالفة معايير الرقابة' }
+        ],
+        requests: [
+          { id: 'REQ-20261023-001', business_id: '6849201', name: 'بقالة البركة والخيرات', plan_id: 'PLAN_MONTHLY', plan_name: 'الباقة الشهرية المتقدمة', price_sdg: 50000, method: 'BANK_TRANSFER', ref: 'TXN-BANKAK-849201', status: 'PENDING', submitted_at: now - 3600000 }
+        ],
+        payments: [
+          { id: 'PAY-1004', business_name: 'سوبرماركت النيل الأبيض', plan_name: 'الباقة الشهرية', amount_sdg: 50000, currency: 'SDG', method: 'BANK_TRANSFER', ref: 'BANKAK-REF-998877', approved_at: now - 86400000 * 5 }
+        ],
+        plans: [
+          { id: 'PLAN_MONTHLY', name_ar: 'الباقة الشهرية المتقدمة', name_en: 'Advanced Monthly', duration: 30, price_sdg: 50000 },
+          { id: 'PLAN_ANNUAL', name_ar: 'الباقة السنوية الشاملة', name_en: 'Comprehensive Annual', duration: 365, price_sdg: 500000 }
+        ],
+        audit: [
+          { id: 1, action: 'ADMIN_LOGIN_SUCCESS', actor: 'admin', reason: 'دخول مسؤول المنصة', timestamp: now - 3600000 }
+        ]
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+      return initial;
+    }
+
+    function saveDb(db) { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }
+
+    // Navigation & UI Controller
+    function navigate(route) {
+      currentRoute = route;
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const activeLink = document.querySelector(`.nav-item[href="#${route}"]`);
+      if (activeLink) activeLink.classList.add('active');
+
+      const container = document.getElementById('main-content');
+      const db = getDb();
+      updateBadges(db);
+
+      if (route === 'overview') renderOverview(container, db);
+      else if (route === 'businesses') renderBusinesses(container, db);
+      else if (route === 'requests') renderRequests(container, db);
+      else if (route === 'payments') renderPayments(container, db);
+      else if (route === 'plans') renderPlans(container, db);
+      else if (route === 'audit') renderAudit(container, db);
+    }
+
+    function updateBadges(db) {
+      document.getElementById('badge-businesses').textContent = db.businesses.length;
+      const pendingCount = db.requests.filter(r => r.status === 'PENDING').length;
+      document.getElementById('badge-requests').textContent = pendingCount;
+    }
+
+    // 1. Overview Screen
+    function renderOverview(container, db) {
+      const now = Date.now();
+      const inTrial = db.businesses.filter(b => b.status === 'TRIAL' && b.trial_ends_at > now && !b.is_suspended).length;
+      const active = db.businesses.filter(b => b.status === 'ACTIVE' && !b.is_suspended).length;
+      const expired = db.businesses.filter(b => b.status === 'EXPIRED' || (b.status === 'TRIAL' && b.trial_ends_at <= now)).length;
+      const suspended = db.businesses.filter(b => b.is_suspended === 1).length;
+      const pending = db.requests.filter(r => r.status === 'PENDING').length;
+      const totalRev = db.payments.reduce((s, p) => s + p.amount_sdg, 0);
+
+      const t = I18N[currentLang];
+      container.innerHTML = `
+        <div class="page-header">
+          <h1 class="page-title">${currentLang === 'ar' ? 'لوحة المتابعة والرقابة السحابية' : 'Platform Executive Dashboard'}</h1>
+          <button class="btn btn-primary btn-sm" onclick="navigate('requests')">${t.kpiPending}: ${pending}</button>
+        </div>
+        <div class="kpi-grid">
+          <div class="kpi-card"><div class="kpi-title">${t.kpiTotal}</div><div class="kpi-value">${db.businesses.length}</div></div>
+          <div class="kpi-card success"><div class="kpi-title">${t.kpiTrial}</div><div class="kpi-value">${inTrial}</div></div>
+          <div class="kpi-card success"><div class="kpi-title">${t.kpiActive}</div><div class="kpi-value">${active}</div></div>
+          <div class="kpi-card warning"><div class="kpi-title">${t.kpiExpired}</div><div class="kpi-value">${expired}</div></div>
+          <div class="kpi-card"><div class="kpi-title">${t.kpiSuspended}</div><div class="kpi-value">${suspended}</div></div>
+          <div class="kpi-card success"><div class="kpi-title">${t.kpiRevenue}</div><div class="kpi-value">${totalRev.toLocaleString()} SDG</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>📥 آخر طلبات الاشتراك المعلقة</span></div>
+          ${renderRequestsTable(db.requests.filter(r => r.status === 'PENDING'))}
+        </div>
+      `;
+    }
+
+    // 2. Businesses Screen
+    function renderBusinesses(container, db) {
+      container.innerHTML = `
+        <div class="page-header">
+          <h1 class="page-title">${currentLang === 'ar' ? 'سجل المنشآت والمتاجر المسجلة' : 'Registered Businesses'}</h1>
+          <input type="text" class="form-input" style="max-width:300px;" placeholder="بحث بالاسم أو الهاتف..." oninput="filterBusinesses(this.value)">
+        </div>
+        <div class="card">
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr><th>المعرف</th><th>اسم المنشأة</th><th>المالك والهاتف</th><th>الحالة</th><th>الإجراءات</th></tr>
+              </thead>
+              <tbody id="businesses-tbody">
+                ${db.businesses.map(b => `
+                  <tr>
+                    <td><code>#${b.id}</code></td>
+                    <td><strong>${b.name}</strong><br><small style="color:#64748b;">${b.type}</small></td>
+                    <td>${b.owner}<br><small style="color:#64748b;">${b.phone}</small></td>
+                    <td><span class="badge badge-${b.is_suspended ? 'suspended' : b.status.toLowerCase()}">${b.is_suspended ? 'موقوف' : b.status}</span></td>
+                    <td>
+                      ${b.is_suspended 
+                        ? `<button class="btn btn-outline btn-sm" onclick="promptRestore('${b.id}')">استعادة</button>`
+                        : `<button class="btn btn-danger btn-sm" onclick="promptSuspend('${b.id}')">إيقاف</button>`}
+                      <button class="btn btn-outline btn-sm" onclick="promptExtend('${b.id}')">تمديد</button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    // 3. Subscription Requests Screen
+    function renderRequests(container, db) {
+      container.innerHTML = `
+        <div class="page-header"><h1 class="page-title">طلبات الاشتراك ومراجعة إشعارات بنكك</h1></div>
+        <div class="card">${renderRequestsTable(db.requests)}</div>
+      `;
+    }
+
+    function renderRequestsTable(requests) {
+      if (!requests || requests.length === 0) return '<p style="color:#64748b; padding:1rem;">لا توجد طلبات في هذا القسم.</p>';
+      return `
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr><th>معرف الطلب</th><th>المنشأة</th><th>الباقة</th><th>المبلغ</th><th>المرجع</th><th>الحالة</th><th>التحقق</th></tr>
+            </thead>
+            <tbody>
+              ${requests.map(r => `
+                <tr>
+                  <td><code>${r.id}</code></td>
+                  <td><strong>${r.name}</strong></td>
+                  <td>${r.plan_name}</td>
+                  <td><strong>${r.price_sdg.toLocaleString()} SDG</strong></td>
+                  <td><code>${r.ref}</code></td>
+                  <td><span class="badge badge-${r.status.toLowerCase()}">${r.status}</span></td>
+                  <td>
+                    ${r.status === 'PENDING' ? `
+                      <button class="btn btn-success btn-sm" onclick="approveRequest('${r.id}')">اعتماد ✅</button>
+                      <button class="btn btn-danger btn-sm" onclick="rejectRequest('${r.id}')">رفض ❌</button>
+                    ` : '<span style="color:#64748b;">تمت المعالجة</span>'}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // 4. Payments Screen
+    function renderPayments(container, db) {
+      container.innerHTML = `
+        <div class="page-header"><h1 class="page-title">سجل المدفوعات المؤكدة (SDG)</h1></div>
+        <div class="card">
+          <div class="table-responsive">
+            <table>
+              <thead><tr><th>رقم الإيصال</th><th>المنشأة</th><th>المبلغ المؤكد</th><th>المرجع</th><th>تاريخ الاعتماد</th></tr></thead>
+              <tbody>
+                ${db.payments.map(p => `
+                  <tr>
+                    <td><code>${p.id}</code></td>
+                    <td><strong>${p.business_name}</strong></td>
+                    <td><strong style="color:var(--success);">${p.amount_sdg.toLocaleString()} ${p.currency}</strong></td>
+                    <td><code>${p.ref}</code></td>
+                    <td>${new Date(p.approved_at).toLocaleDateString()}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    // 5. Plans Screen
+    function renderPlans(container, db) {
+      container.innerHTML = `
+        <div class="page-header"><h1 class="page-title">باقات وخطط الاشتراك الرسمية</h1></div>
+        <div class="kpi-grid">
+          ${db.plans.map(p => `
+            <div class="card" style="margin-bottom:0;">
+              <h3 style="margin-bottom:0.5rem;">${p.name_ar}</h3>
+              <div style="font-size:1.75rem; font-weight:800; color:var(--primary); margin-bottom:1rem;">${p.price_sdg.toLocaleString()} SDG</div>
+              <p style="color:var(--text-muted); font-size:0.9rem;">المدة: ${p.duration} يوم</p>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // 6. Audit Log Screen
+    function renderAudit(container, db) {
+      container.innerHTML = `
+        <div class="page-header"><h1 class="page-title">سجل الرقابة والعمليات الإدارية</h1></div>
+        <div class="card">
+          <div class="table-responsive">
+            <table>
+              <thead><tr><th>المعرف</th><th>العملية</th><th>المسؤول</th><th>السبب الإداري</th><th>التوقيت</th></tr></thead>
+              <tbody>
+                ${db.audit.map(a => `
+                  <tr>
+                    <td>#${a.id}</td>
+                    <td><code>${a.action}</code></td>
+                    <td><strong>${a.actor}</strong></td>
+                    <td>${a.reason || '—'}</td>
+                    <td>${new Date(a.timestamp).toLocaleString()}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    // Business Logic Actions
+    function approveRequest(reqId) {
+      const db = getDb();
+      const r = db.requests.find(x => x.id === reqId);
+      if (!r || r.status !== 'PENDING') return;
+
+      r.status = 'APPROVED';
+      const biz = db.businesses.find(b => b.id === r.business_id);
+      if (biz) {
+        biz.status = 'ACTIVE';
+        biz.sub_ends_at = Date.now() + 30 * 86400 * 1000;
+      }
+
+      db.payments.unshift({
+        id: 'PAY-' + Date.now().toString().slice(-4),
+        business_name: r.name,
+        plan_name: r.plan_name,
+        amount_sdg: r.price_sdg,
+        currency: 'SDG',
+        method: r.method,
+        ref: r.ref,
+        approved_at: Date.now()
+      });
+
+      db.audit.unshift({
+        id: db.audit.length + 1,
+        action: 'APPROVE_PAYMENT',
+        actor: 'admin',
+        reason: 'اعتماد يدوي واستلام إشعار بنكك',
+        timestamp: Date.now()
+      });
+
+      saveDb(db);
+      showToast('تم اعتماد الدفع وتفعيل الاشتراك بنجاح في قاعدة البيانات!');
+      navigate(currentRoute);
+    }
+
+    function rejectRequest(reqId) {
+      const reason = prompt('يرجى ذكر سبب الرفض للرقابة الإدارية:');
+      if (!reason) return;
+      const db = getDb();
+      const r = db.requests.find(x => x.id === reqId);
+      if (r) {
+        r.status = 'REJECTED';
+        db.audit.unshift({ id: db.audit.length + 1, action: 'REJECT_PAYMENT', actor: 'admin', reason, timestamp: Date.now() });
+        saveDb(db);
+        showToast('تم رفض الطلب وتسجيل السبب في سجل الرقابة.');
+        navigate(currentRoute);
+      }
+    }
+
+    function promptSuspend(bizId) {
+      const reason = prompt('يرجى إدخال سبب الإيقاف المؤقت للمنشأة:');
+      if (!reason) return;
+      const db = getDb();
+      const biz = db.businesses.find(b => b.id === bizId);
+      if (biz) {
+        biz.is_suspended = 1;
+        db.audit.unshift({ id: db.audit.length + 1, action: 'SUSPEND_BUSINESS', actor: 'admin', reason, timestamp: Date.now() });
+        saveDb(db);
+        showToast('تم إيقاف حساب المنشأة مع الحفاظ التام على سجلاتها.');
+        navigate('businesses');
+      }
+    }
+
+    function promptRestore(bizId) {
+      const db = getDb();
+      const biz = db.businesses.find(b => b.id === bizId);
+      if (biz) {
+        biz.is_suspended = 0;
+        db.audit.unshift({ id: db.audit.length + 1, action: 'RESTORE_BUSINESS', actor: 'admin', reason: 'رفع التعليق الإداري', timestamp: Date.now() });
+        saveDb(db);
+        showToast('تمت استعادة وتنشيط حساب المنشأة بنجاح.');
+        navigate('businesses');
+      }
+    }
+
+    function promptExtend(bizId) {
+      const days = parseInt(prompt('أدخل عدد الأيام لتمديد الاشتراك:', '30'), 10);
+      if (!days || isNaN(days)) return;
+      const db = getDb();
+      const biz = db.businesses.find(b => b.id === bizId);
+      if (biz) {
+        biz.sub_ends_at = (biz.sub_ends_at || Date.now()) + days * 86400 * 1000;
+        biz.status = 'ACTIVE';
+        db.audit.unshift({ id: db.audit.length + 1, action: 'EXTEND_SUBSCRIPTION', actor: 'admin', reason: `تمديد يدوي ${days} يوم`, timestamp: Date.now() });
+        saveDb(db);
+        showToast(`تم تمديد اشتراك المنشأة لمدة ${days} يوم بنجاح.`);
+        navigate('businesses');
+      }
+    }
+
+    // Login & Session
+    function handleLogin(e) {
+      e.preventDefault();
+      const u = document.getElementById('inp-username').value.trim();
+      const p = document.getElementById('inp-password').value;
+      if ((u === 'admin' || u === 'admin@cashdar.sd') && (p === 'CashdarSuper@2026!' || p === 'admin')) {
+        document.getElementById('login-overlay').classList.add('hidden');
+        document.getElementById('admin-shell').classList.remove('hidden');
+        navigate('overview');
+        showToast('تم تسجيل الدخول بنجاح! مرحباً بك في لوحة كاشدار');
+      } else {
+        const al = document.getElementById('login-alert');
+        al.textContent = 'بيانات الدخول غير صحيحة. استخدم: admin / CashdarSuper@2026!';
+        al.classList.remove('hidden');
+      }
+    }
+
+    function handleLogout() {
+      if (confirm('هل ترغب في تسجيل الخروج؟')) {
+        document.getElementById('admin-shell').classList.add('hidden');
+        document.getElementById('login-overlay').classList.remove('hidden');
+      }
+    }
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'ar' ? 'en' : 'ar';
+      localStorage.setItem('cashdar_lang', currentLang);
+      document.documentElement.lang = currentLang;
+      document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+      document.getElementById('btn-lang').textContent = currentLang === 'ar' ? '🌐 English' : '🌐 العربية';
+      navigate(currentRoute);
+    }
+
+    function toggleMobileSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.remove('hidden');
+      setTimeout(() => t.classList.add('hidden'), 3500);
+    }
+
+    function closeModal() {
+      document.getElementById('modal-container').classList.add('hidden');
+    }
+
+    // Boot
+    window.addEventListener('DOMContentLoaded', () => {
+      document.documentElement.lang = currentLang;
+      document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+    });
   </script>
 </body>
-</html>
+              </html>
