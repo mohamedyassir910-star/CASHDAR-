@@ -3,16 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>كاشدار CASHDAR - لوحة التحكم المركزية السحابية (Super Admin Portal)</title>
-
-  <!-- Tailwind CSS & Google Fonts (Tajawal & Cairo) -->
+  <title>كاشدار CASHDAR - لوحة التحكم المركزية (Super Admin)</title>
+  
+  <!-- Tailwind CSS & Google Fonts (Cairo & Tajawal) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
-
+  
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Supabase JS Client v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
     tailwind.config = {
@@ -27,19 +30,15 @@
             brand: {
               50: '#ecfdf5',
               100: '#d1fae5',
-              200: '#a7f3d0',
-              300: '#6ee7b7',
-              400: '#34d399',
               500: '#10b981',
               600: '#059669',
               700: '#047857',
               800: '#065f46',
               900: '#064e3b',
             },
-            admin: {
-              card: '#1e293b',
-              sidebar: '#0f172a',
-              accent: '#38bdf8'
+            dark: {
+              800: '#1e293b',
+              900: '#0f172a',
             }
           }
         }
@@ -53,7 +52,6 @@
       user-select: none;
       -webkit-tap-highlight-color: transparent;
     }
-    /* Custom Scrollbar */
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -61,2546 +59,849 @@
     ::-webkit-scrollbar-track {
       background: #f1f5f9;
     }
-    .dark ::-webkit-scrollbar-track {
-      background: #0f172a;
-    }
     ::-webkit-scrollbar-thumb {
       background: #cbd5e1;
       border-radius: 9999px;
     }
-    .dark ::-webkit-scrollbar-thumb {
-      background: #334155;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8;
-    }
-
-    /* Pulsing Badge for Pending Requests */
-    @keyframes pulseGlow {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.85; transform: scale(1.05); }
-    }
     .pulse-glow {
-      animation: pulseGlow 2s infinite ease-in-out;
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+    }
+    .shield-glow {
+      box-shadow: 0 0 35px rgba(16, 185, 129, 0.25);
     }
   </style>
 </head>
+<body class="bg-slate-900 text-slate-100 antialiased min-h-screen flex flex-col justify-between">
 
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-200 flex flex-col">
-
-  <!-- ================= TOP HEADER NAVIGATION ================= -->
-  <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+  <!-- ========================================== -->
+  <!-- 1. SECURITY LOGIN SCREEN (شاشة تسجيل الدخول) -->
+  <!-- ========================================== -->
+  <div id="login-screen" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl shield-glow relative overflow-hidden">
       
-      <!-- Brand & Title -->
-      <div class="flex items-center gap-3">
-        <button onclick="toggleMobileSidebar()" class="lg:hidden text-slate-600 dark:text-slate-300 hover:text-brand-600 p-2 rounded-xl border border-slate-200 dark:border-slate-800">
-          <i class="fa-solid fa-bars text-lg"></i>
-        </button>
+      <!-- Decorative Ambient Lights -->
+      <div class="absolute -top-16 -right-16 w-32 h-32 bg-brand-500/10 rounded-full blur-2xl"></div>
+      <div class="absolute -bottom-16 -left-16 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl"></div>
 
-        <div class="flex items-center gap-2.5">
-          <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-600 to-emerald-400 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-brand-500/30">
-            <i class="fa-solid fa-crown"></i>
+      <!-- Lock Header -->
+      <div class="text-center space-y-3 relative">
+        <div class="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-tr from-brand-600 to-emerald-400 text-white flex items-center justify-center font-black text-2xl shadow-xl shadow-brand-500/30">
+          <i class="fa-solid fa-lock"></i>
+        </div>
+        
+        <div>
+          <div class="flex items-center justify-center gap-2">
+            <span class="text-xl font-black text-white tracking-wide">كاشدار <span class="text-brand-500">CASHDAR</span></span>
+            <span class="bg-amber-500/20 text-amber-400 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-500/30">Super Admin</span>
           </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="text-lg font-black text-slate-900 dark:text-white tracking-tight">كاشدار <span class="text-brand-600 text-sm">CASHDAR</span></span>
-              <span class="bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-500/20">Super Admin</span>
-            </div>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">لوحة التحكم المركزية للمالك • إدارة المتاجر والاشتراكات السحابية</p>
-          </div>
+          <p class="text-xs text-slate-400 mt-1">منطقة محمية - يتطلب الدخول كلمة سر الإدارة المركزية</p>
         </div>
       </div>
 
-      <!-- Bank Transfer Official Account Badge -->
-      <div class="hidden md:flex items-center gap-3 bg-slate-900 text-white px-3.5 py-1.5 rounded-2xl border border-slate-800 shadow-sm">
-        <div class="flex items-center gap-1.5 text-xs text-amber-400 font-bold">
-          <i class="fa-solid fa-building-columns"></i>
-          <span>حساب الاستقبال:</span>
-        </div>
-        <div class="flex items-center gap-2 font-mono text-xs font-black text-emerald-400 bg-slate-800/80 px-2 py-0.5 rounded-lg border border-slate-700">
-          <span id="header-bank-acc">59189</span>
-          <button onclick="copyAccountNo()" class="text-slate-400 hover:text-white" title="نسخ رقم الحساب">
-            <i class="fa-regular fa-copy text-xs"></i>
-          </button>
-        </div>
-        <div class="text-[11px] text-slate-300 font-bold border-r border-slate-800 pr-2">
-          محمد ياسر إبراهيم محمد
-        </div>
-      </div>
-
-      <!-- Quick Actions & Switcher -->
-      <div class="flex items-center gap-2">
-        <!-- Return to Cashier App / POS -->
-        <a href="index.html" class="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-slate-700 px-3 py-2 rounded-xl transition border border-slate-200 dark:border-slate-700" title="التبديل إلى نظام الكاشير">
-          <i class="fa-solid fa-cash-register text-brand-600"></i>
-          <span>نظام الكاشير (POS)</span>
-        </a>
-
-        <!-- Pending Badge Notification Bell -->
-        <button onclick="switchTab('approvals')" class="relative p-2 text-slate-600 dark:text-slate-300 hover:text-brand-600 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="طلبات بانتظار الاعتماد">
-          <i class="fa-solid fa-bell text-lg"></i>
-          <span id="header-pending-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center pulse-glow">
-            0
-          </span>
-        </button>
-
-        <!-- Dark/Light Theme Toggle -->
-        <button onclick="toggleDarkMode()" class="p-2 text-slate-600 dark:text-slate-300 hover:text-amber-500 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">
-          <i id="theme-icon" class="fa-solid fa-moon text-lg"></i>
-        </button>
-
-        <!-- Admin Profile -->
-        <div class="flex items-center gap-2 pl-1 border-r border-slate-200 dark:border-slate-800 pr-2">
-          <div class="w-8 h-8 rounded-full bg-slate-800 text-amber-400 flex items-center justify-center text-xs font-bold border-2 border-amber-400/40">
-            MY
+      <!-- Password Form -->
+      <form onsubmit="handleLogin(event)" class="mt-6 space-y-4 relative">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5">
+            <i class="fa-solid fa-key ml-1 text-amber-400"></i> كلمة سر لوحة التحكم:
+          </label>
+          <div class="relative">
+            <input 
+              type="password" 
+              id="admin-password-input" 
+              required
+              autofocus
+              placeholder="أدخل كلمة السر المعتمدة..." 
+              class="w-full bg-slate-950 border border-slate-700 focus:border-brand-500 pr-4 pl-10 py-3 rounded-2xl text-sm font-mono text-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 transition shadow-inner"
+            >
+            <button 
+              type="button" 
+              onclick="togglePasswordVisibility()" 
+              class="absolute left-3 top-3.5 text-slate-400 hover:text-slate-200 transition"
+              title="إظهار / إخفاء كلمة السر"
+            >
+              <i id="toggle-pwd-icon" class="fa-solid fa-eye text-xs"></i>
+            </button>
           </div>
-          <div class="hidden xl:block text-right">
-            <div class="text-xs font-black text-slate-800 dark:text-white leading-none">م. محمد ياسر</div>
-            <div class="text-[10px] text-brand-600 dark:text-brand-400 font-bold">مالك التطبيق</div>
+          
+          <!-- Error Message Notice -->
+          <div id="login-error-msg" class="hidden mt-2 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>كلمة السر غير صحيحة! يرجى إعادة المحاولة.</span>
           </div>
         </div>
+
+        <button 
+          type="submit" 
+          id="login-btn"
+          class="w-full bg-gradient-to-r from-brand-600 to-emerald-500 hover:from-brand-500 hover:to-emerald-400 text-white font-bold py-3.5 rounded-2xl text-sm shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition active:scale-98"
+        >
+          <i class="fa-solid fa-unlock"></i>
+          <span>فتح لوحة التحكم والربط السحابي</span>
+        </button>
+      </form>
+
+      <!-- Security Notice -->
+      <div class="mt-6 pt-4 border-t border-slate-800/80 text-center text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
+        <i class="fa-solid fa-shield-halved text-emerald-500"></i>
+        <span>لا يتم تحميل بيانات المتاجر والاشتراكات من Supabase إلا بعد التوثيق</span>
       </div>
 
     </div>
-  </header>
+  </div>
 
-  <!-- ================= MAIN LAYOUT CONTAINER ================= -->
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1 flex flex-col lg:flex-row gap-6">
+  <!-- ========================================== -->
+  <!-- 2. MAIN APPLICATION (يظهر فقط بعد كلمة السر) -->
+  <!-- ========================================== -->
+  <div id="admin-app" class="hidden flex-1 flex flex-col">
 
-    <!-- SIDEBAR NAVIGATION (Desktop & Mobile Drawer) -->
-    <aside id="sidebar-menu" class="hidden lg:block w-full lg:w-64 shrink-0 space-y-4">
-      
-      <!-- Navigation Menu -->
-      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-sm space-y-1">
-        <button onclick="switchTab('dashboard')" id="nav-btn-dashboard" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition bg-brand-600 text-white shadow-md shadow-brand-600/20">
-          <div class="flex items-center gap-2.5">
-            <i class="fa-solid fa-chart-pie text-sm"></i>
-            <span>لوحة المؤشرات</span>
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-950 border-b border-slate-800 sticky top-0 z-40 shadow-lg">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          
+          <!-- Logo & Title -->
+          <div class="flex items-center space-x-3 space-x-reverse">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-600 to-emerald-400 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-brand-500/30">
+              <i class="fa-solid fa-crown"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-lg font-black text-white tracking-tight">كاشدار <span class="text-brand-500 text-sm">CASHDAR</span></span>
+                <span class="bg-amber-500/20 text-amber-400 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-500/30">Super Admin</span>
+              </div>
+              <p class="text-[11px] text-slate-400 hidden sm:block">لوحة إدارة المتاجر السحابية والاشتراكات (Supabase)</p>
+            </div>
           </div>
-          <span class="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md">Live</span>
-        </button>
 
-        <button onclick="switchTab('stores')" id="nav-btn-stores" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition">
-          <div class="flex items-center gap-2.5">
-            <i class="fa-solid fa-store text-sm"></i>
-            <span>إدارة المتاجر والتجار</span>
-          </div>
-          <span id="nav-stores-count" class="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full font-mono">0</span>
-        </button>
-
-        <button onclick="switchTab('approvals')" id="nav-btn-approvals" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition">
-          <div class="flex items-center gap-2.5">
-            <i class="fa-solid fa-file-invoice-dollar text-sm"></i>
-            <span>طلبات الاعتماد والتحويل</span>
-          </div>
-          <span id="nav-pending-badge" class="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full font-mono">0</span>
-        </button>
-
-        <button onclick="switchTab('analytics')" id="nav-btn-analytics" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition">
-          <div class="flex items-center gap-2.5">
-            <i class="fa-solid fa-coins text-sm"></i>
-            <span>الإيرادات والاشتراكات</span>
-          </div>
-          <i class="fa-solid fa-angle-left text-xs opacity-50"></i>
-        </button>
-
-        <button onclick="switchTab('settings')" id="nav-btn-settings" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition">
-          <div class="flex items-center gap-2.5">
-            <i class="fa-solid fa-database text-sm"></i>
-            <span>ربط Supabase السحابي</span>
-          </div>
-          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-        </button>
-      </div>
-
-      <!-- Official Bank Reception Card in Sidebar -->
-      <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl p-4 border border-slate-700/60 shadow-lg space-y-3">
-        <div class="flex items-center justify-between border-b border-slate-700/60 pb-2.5">
-          <div class="flex items-center gap-2">
-            <span class="w-6 h-6 rounded-lg bg-amber-400/20 text-amber-400 flex items-center justify-center text-xs">
+          <!-- Bank Account 59189 Official Badge -->
+          <div class="hidden md:flex items-center gap-3 bg-slate-900/90 px-3.5 py-1.5 rounded-2xl border border-slate-800 shadow-sm">
+            <div class="flex items-center gap-1.5 text-xs text-amber-400 font-bold">
               <i class="fa-solid fa-building-columns"></i>
-            </span>
-            <span class="text-xs font-bold text-amber-300">حساب التحويل الرسمي</span>
+              <span>حساب الاستقبال:</span>
+            </div>
+            <div class="flex items-center gap-2 font-mono text-xs font-black text-emerald-400 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800">
+              <span>59189</span>
+              <button onclick="navigator.clipboard.writeText('59189'); alert('تم نسخ رقم الحساب 59189')" class="text-slate-400 hover:text-white" title="نسخ رقم الحساب">
+                <i class="fa-regular fa-copy text-xs"></i>
+              </button>
+            </div>
+            <div class="text-[11px] text-slate-300 font-bold border-r border-slate-800 pr-2">
+              محمد ياسر إبراهيم محمد
+            </div>
           </div>
-          <span class="bg-emerald-500/20 text-emerald-400 text-[9px] font-black px-2 py-0.5 rounded-md">بنكك / فوري</span>
-        </div>
 
-        <div>
-          <div class="text-[11px] text-slate-400">رقم الحساب البنكي المعتمد:</div>
-          <div class="flex items-center justify-between mt-1">
-            <span class="text-xl font-black font-mono tracking-wider text-emerald-400">59189</span>
-            <button onclick="copyAccountNo()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2.5 py-1 rounded-lg text-xs font-bold border border-slate-700 flex items-center gap-1 transition">
-              <i class="fa-regular fa-copy"></i>
-              <span>نسخ</span>
+          <!-- Right Side: Pending Count, POS Link, Refresh, Logout -->
+          <div class="flex items-center gap-2">
+            <!-- Pending Approvals Bell -->
+            <button onclick="switchTab('subscriptions')" class="relative p-2 text-slate-300 hover:text-amber-400 rounded-xl hover:bg-slate-800 transition" title="طلبات بانتظار الاعتماد">
+              <i class="fa-solid fa-bell text-lg"></i>
+              <span id="pending-badge" class="absolute -top-1 -right-1 bg-rose-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center pulse-glow">
+                0
+              </span>
+            </button>
+
+            <!-- Refresh Data Button -->
+            <button onclick="loadAllData()" class="p-2 text-slate-300 hover:text-brand-400 rounded-xl hover:bg-slate-800 transition" title="تحديث البيانات">
+              <i id="refresh-icon" class="fa-solid fa-arrows-rotate text-lg"></i>
+            </button>
+
+            <!-- Back to Cashier POS App -->
+            <a href="index.html" class="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-950/60 hover:bg-emerald-900/80 px-3 py-2 rounded-xl transition border border-emerald-800/60">
+              <i class="fa-solid fa-cash-register"></i>
+              <span class="hidden sm:inline">نظام الكاشير</span>
+            </a>
+
+            <!-- Lock / Logout Button -->
+            <button onclick="lockAdmin()" class="flex items-center gap-1.5 text-xs font-bold text-rose-400 bg-rose-950/50 hover:bg-rose-900/80 px-3 py-2 rounded-xl transition border border-rose-800/60" title="قفل لوحة التحكم">
+              <i class="fa-solid fa-lock"></i>
+              <span class="hidden sm:inline">قفل</span>
             </button>
           </div>
-        </div>
 
-        <div class="text-xs border-t border-slate-700/60 pt-2 space-y-1">
-          <div class="text-[11px] text-slate-400">اسم صاحب الحساب:</div>
-          <div class="font-bold text-white text-xs">محمد ياسر إبراهيم محمد</div>
-        </div>
-
-        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 space-y-1 text-[11px]">
-          <div class="flex justify-between text-slate-300">
-            <span>الباقة الشهرية:</span>
-            <span class="font-bold text-amber-300 font-mono">50,000 ج.س</span>
-          </div>
-          <div class="flex justify-between text-slate-300">
-            <span>الباقة السنوية:</span>
-            <span class="font-bold text-emerald-400 font-mono">500,000 ج.س</span>
-          </div>
         </div>
       </div>
+    </header>
 
-      <!-- Quick Action Buttons -->
-      <div class="space-y-2">
-        <button onclick="openNewStoreModal()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-brand-600/20 transition">
-          <i class="fa-solid fa-plus-circle"></i>
-          <span>تسجيل متجر جديد يدوياً</span>
-        </button>
+    <!-- Main Workspace -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1 flex flex-col md:flex-row gap-6">
 
-        <button onclick="exportDataToJSON()" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-2 transition">
-          <i class="fa-solid fa-download text-slate-500"></i>
-          <span>تصدير نسخة احتياطية (JSON)</span>
-        </button>
-      </div>
+      <!-- Sidebar Navigation -->
+      <aside class="w-full md:w-56 shrink-0 space-y-2">
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-2.5 shadow-sm space-y-1.5">
+          <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition bg-brand-600 text-white shadow-md">
+            <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+            <span>لوحة المؤشرات</span>
+          </button>
 
-    </aside>
-
-    <!-- ================= CONTENT AREA ================= -->
-    <main class="flex-1 min-w-0 space-y-6">
-
-      <!-- ================= 1. TAB: DASHBOARD OVERVIEW ================= -->
-      <div id="tab-dashboard" class="space-y-6">
-        
-        <!-- Welcome Banner with Live Sudanese Time -->
-        <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-brand-950 text-white p-5 sm:p-6 rounded-3xl shadow-xl relative overflow-hidden border border-slate-800">
-          <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div class="space-y-1">
-              <div class="flex items-center gap-2">
-                <span class="bg-brand-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">CASHDAR CLOUD ENGINE</span>
-                <span class="text-xs text-slate-400 font-mono" id="live-time-display">--:--:--</span>
-              </div>
-              <h2 class="text-2xl sm:text-3xl font-black text-white">لوحة المتابعة السحابية للمتاجر</h2>
-              <p class="text-xs sm:text-sm text-slate-300 max-w-2xl">
-                مرحباً بك في مركز التحكم بمالك تطبيق كاشدار. راقب حالة المتاجر، الاشتراكات الشهرية والسنوية، وقم باعتماد طلبات التحويل البنكي لحسابك (59189).
-              </p>
-            </div>
-
+          <button onclick="switchTab('stores')" id="nav-stores" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition text-slate-400 hover:bg-slate-800 hover:text-white">
             <div class="flex items-center gap-3">
-              <button onclick="switchTab('approvals')" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black px-4 py-2.5 rounded-2xl text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20 transition shrink-0">
-                <i class="fa-solid fa-circle-check"></i>
-                <span>مراجعة الطلبات (<span id="banner-pending-count">0</span>)</span>
-              </button>
-              <button onclick="refreshAllData()" class="bg-slate-800 hover:bg-slate-700 text-white p-2.5 rounded-2xl border border-slate-700 transition" title="تحديث البيانات">
-                <i class="fa-solid fa-rotate text-sm"></i>
-              </button>
+              <i class="fa-solid fa-store w-5 text-center"></i>
+              <span>المتاجر المسجلة</span>
             </div>
-          </div>
-          <!-- Decorative Background Elements -->
-          <div class="absolute -left-10 -bottom-10 w-44 h-44 bg-brand-500/10 rounded-full blur-2xl pointer-events-none"></div>
-          <div class="absolute -right-10 -top-10 w-44 h-44 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+            <span id="nav-stores-count" class="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded-full font-mono">0</span>
+          </button>
+
+          <button onclick="switchTab('subscriptions')" id="nav-subscriptions" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition text-slate-400 hover:bg-slate-800 hover:text-white">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-money-check-dollar w-5 text-center"></i>
+              <span>طلبات التحويل (59189)</span>
+            </div>
+            <span id="nav-pending-count" class="bg-rose-500/20 text-rose-400 text-[10px] px-2 py-0.5 rounded-full font-mono">0</span>
+          </button>
+
+          <button onclick="switchTab('manual')" id="nav-manual" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition text-slate-400 hover:bg-slate-800 hover:text-white">
+            <i class="fa-solid fa-key w-5 text-center"></i>
+            <span>التفعيل اليدوي المباشر</span>
+          </button>
         </div>
 
-        <!-- 4 Primary KPI Statistics Cards (As Required) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <!-- Cloud DB Status Card -->
+        <div class="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-3.5 text-xs space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400 font-bold">حالة اتصال Supabase:</span>
+            <span class="flex items-center gap-1.5 text-emerald-400 font-mono text-[11px]">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+              متصل
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-500 font-mono break-all leading-tight">
+            ywhhncvtznvazhpacxte.supabase.co
+          </p>
+        </div>
+      </aside>
+
+      <!-- Main Content Tabs -->
+      <main class="flex-1 min-w-0">
+
+        <!-- TAB 1: DASHBOARD -->
+        <div id="tab-dashboard" class="tab-pane space-y-6">
           
-          <!-- KPI 1: Total Registered Stores -->
-          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-md transition">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-slate-500 dark:text-slate-400">إجمالي المتاجر المسجلة</span>
-              <div class="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-lg">
-                <i class="fa-solid fa-store"></i>
+          <!-- KPI Cards -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-slate-950 border border-slate-800 p-4 rounded-2xl shadow-sm">
+              <div class="flex items-center justify-between text-slate-400 text-xs font-bold mb-2">
+                <span>إجمالي المتاجر</span>
+                <i class="fa-solid fa-store text-emerald-400"></i>
               </div>
+              <div id="kpi-total-stores" class="text-2xl font-black text-white font-mono">0</div>
+              <span class="text-[10px] text-slate-500">سجلت من تطبيق التاجر</span>
             </div>
-            <div class="mt-3 flex items-baseline gap-2">
-              <span id="stat-total-stores" class="text-3xl font-black text-slate-900 dark:text-white font-mono">0</span>
-              <span class="text-xs font-bold text-slate-500">متجر</span>
-            </div>
-            <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
-              <span class="text-slate-500">متاجر نشطة وحية</span>
-              <span class="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                <i class="fa-solid fa-chart-line"></i> +12% هذا الأسبوع
-              </span>
-            </div>
-          </div>
 
-          <!-- KPI 2: Stores in 72h Trial -->
-          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-md transition">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-slate-500 dark:text-slate-400">فترة التجربة (72 ساعة)</span>
-              <div class="w-10 h-10 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center text-lg">
-                <i class="fa-solid fa-stopwatch"></i>
-              </div>
-            </div>
-            <div class="mt-3 flex items-baseline gap-2">
-              <span id="stat-trial-stores" class="text-3xl font-black text-sky-600 dark:text-sky-400 font-mono">0</span>
-              <span class="text-xs font-bold text-slate-500">متجر تجريبي</span>
-            </div>
-            <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
-              <span class="text-slate-500">تنتهي قريباً (أقل من 24h)</span>
-              <span id="stat-expiring-soon" class="font-bold text-amber-500 font-mono">0</span>
-            </div>
-          </div>
-
-          <!-- KPI 3: Active Paid Subscriptions (Monthly / Annual) -->
-          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-md transition">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-slate-500 dark:text-slate-400">الاشتراكات النشطة</span>
-              <div class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-lg">
-                <i class="fa-solid fa-certificate"></i>
-              </div>
-            </div>
-            <div class="mt-3 flex items-baseline gap-2">
-              <span id="stat-active-subs" class="text-3xl font-black text-emerald-600 dark:text-emerald-400 font-mono">0</span>
-              <span class="text-xs font-bold text-slate-500">مشترك مدفوع</span>
-            </div>
-            <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-mono">
-              <span class="text-slate-500">شهري: <b id="stat-monthly-subs" class="text-slate-800 dark:text-slate-200 font-bold">0</b></span>
-              <span class="text-slate-500">سنوي: <b id="stat-annual-subs" class="text-amber-500 font-bold">0</b></span>
-            </div>
-          </div>
-
-          <!-- KPI 4: Pending / Expired Subscriptions -->
-          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-md transition">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-slate-500 dark:text-slate-400">معلقة / منتهية</span>
-              <div class="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg">
+            <div class="bg-slate-950 border border-slate-800 p-4 rounded-2xl shadow-sm">
+              <div class="flex items-center justify-between text-amber-400 text-xs font-bold mb-2">
+                <span>طلبات معلقة</span>
                 <i class="fa-solid fa-clock-rotate-left"></i>
               </div>
+              <div id="kpi-pending-subs" class="text-2xl font-black text-amber-400 font-mono">0</div>
+              <span class="text-[10px] text-slate-500">تحويلات بنكك بانتظار الاعتماد</span>
             </div>
-            <div class="mt-3 flex items-baseline gap-2">
-              <span id="stat-pending-subs" class="text-3xl font-black text-amber-600 dark:text-amber-400 font-mono">0</span>
-              <span class="text-xs font-bold text-slate-500">معلق</span>
-              <span class="text-slate-300 dark:text-slate-700">|</span>
-              <span id="stat-expired-subs" class="text-xl font-bold text-red-500 font-mono">0</span>
-              <span class="text-[10px] text-slate-400">منتهي</span>
-            </div>
-            <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
-              <span class="text-slate-500">تتطلب إجراء واعتماد</span>
-              <button onclick="switchTab('approvals')" class="text-brand-600 dark:text-brand-400 font-bold hover:underline">
-                اتخاذ إجراء <i class="fa-solid fa-arrow-left"></i>
-              </button>
-            </div>
-          </div>
 
-        </div>
-
-        <!-- Revenue Highlight & Quick Visualizer Card -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          <!-- Total Revenue Card (59189 Bank Account) -->
-          <div class="bg-gradient-to-br from-brand-900 to-emerald-950 text-white p-6 rounded-3xl border border-brand-800/80 shadow-lg relative overflow-hidden flex flex-col justify-between">
-            <div class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-emerald-300 uppercase tracking-wider">إجمالي الإيرادات المحصلة</span>
-                <span class="bg-emerald-400/20 text-emerald-300 text-[10px] font-black px-2 py-0.5 rounded-full">حساب 59189</span>
+            <div class="bg-slate-950 border border-slate-800 p-4 rounded-2xl shadow-sm">
+              <div class="flex items-center justify-between text-brand-400 text-xs font-bold mb-2">
+                <span>اشتراكات نشطة</span>
+                <i class="fa-solid fa-circle-check"></i>
               </div>
-              <div class="text-3xl sm:text-4xl font-black font-mono text-emerald-400 mt-2" id="stat-total-revenue">0 <span class="text-sm font-sans font-bold text-emerald-200">جنيه سوداني</span></div>
-              <p class="text-xs text-emerald-200/80 leading-relaxed">
-                المبالغ المحولة مباشرة من المتاجر إلى حساب (محمد ياسر إبراهيم محمد) عبر بنكك وفوري.
-              </p>
+              <div id="kpi-active-subs" class="text-2xl font-black text-emerald-400 font-mono">0</div>
+              <span class="text-[10px] text-slate-500">متاجر مفعلة ومدفوعة</span>
             </div>
 
-            <div class="mt-6 pt-4 border-t border-brand-800/80 space-y-2 text-xs">
-              <div class="flex justify-between items-center text-emerald-100">
-                <span>إيرادات الباقة الشهرية (50,000 ج.س):</span>
-                <span id="stat-rev-monthly" class="font-mono font-bold">0 ج.س</span>
+            <div class="bg-slate-950 border border-slate-800 p-4 rounded-2xl shadow-sm">
+              <div class="flex items-center justify-between text-emerald-400 text-xs font-bold mb-2">
+                <span>إجمالي المحصل</span>
+                <i class="fa-solid fa-money-bill-trend-up"></i>
               </div>
-              <div class="flex justify-between items-center text-emerald-100">
-                <span>إيرادات الباقة السنوية (500,000 ج.س):</span>
-                <span id="stat-rev-annual" class="font-mono font-bold">0 ج.س</span>
-              </div>
+              <div id="kpi-revenue" class="text-xl font-black text-emerald-400 font-mono">0 جنيه</div>
+              <span class="text-[10px] text-slate-500">على حساب 59189</span>
             </div>
           </div>
 
-          <!-- Stores Distribution by Status & Chart Simulation -->
-          <div class="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
-            <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h3 class="font-black text-slate-800 dark:text-white text-base">توزيع باقات وحالات المتاجر</h3>
-                <p class="text-xs text-slate-500">نسبة المتاجر التجريبية مقابل الاشتراكات السنوية والشهرية</p>
-              </div>
-              <span class="text-xs font-mono font-bold text-brand-600 bg-brand-50 dark:bg-brand-950/60 px-2.5 py-1 rounded-xl">CASHDAR ANALYTICS</span>
-            </div>
-
-            <!-- Progress Bars for Quick Status Visuals -->
-            <div class="space-y-3 pt-2">
-              <div>
-                <div class="flex justify-between text-xs font-bold mb-1">
-                  <span class="text-slate-700 dark:text-slate-300">الاشتراكات النشطة المدفوعة (شهرية + سنوية)</span>
-                  <span id="bar-label-active" class="font-mono text-emerald-600">0%</span>
-                </div>
-                <div class="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div id="bar-active" class="h-full bg-emerald-500 rounded-full transition-all duration-500" style="width: 0%"></div>
-                </div>
-              </div>
-
-              <div>
-                <div class="flex justify-between text-xs font-bold mb-1">
-                  <span class="text-slate-700 dark:text-slate-300">فترة التجربة المجانية (72 ساعة)</span>
-                  <span id="bar-label-trial" class="font-mono text-sky-600">0%</span>
-                </div>
-                <div class="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div id="bar-trial" class="h-full bg-sky-500 rounded-full transition-all duration-500" style="width: 0%"></div>
-                </div>
-              </div>
-
-              <div>
-                <div class="flex justify-between text-xs font-bold mb-1">
-                  <span class="text-slate-700 dark:text-slate-300">طلبات بانتظار التحقق والاعتماد البنكي</span>
-                  <span id="bar-label-pending" class="font-mono text-amber-500">0%</span>
-                </div>
-                <div class="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div id="bar-pending" class="h-full bg-amber-500 rounded-full transition-all duration-500" style="width: 0%"></div>
-                </div>
-              </div>
-
-              <div>
-                <div class="flex justify-between text-xs font-bold mb-1">
-                  <span class="text-slate-700 dark:text-slate-300">اشتراكات منتهية أو محظورة</span>
-                  <span id="bar-label-expired" class="font-mono text-red-500">0%</span>
-                </div>
-                <div class="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div id="bar-expired" class="h-full bg-red-500 rounded-full transition-all duration-500" style="width: 0%"></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Quick Action Shortcuts -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-              <button onclick="filterStoresBy('trial')" class="bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 p-2.5 rounded-2xl text-center transition border border-slate-200 dark:border-slate-800">
-                <div class="text-[11px] font-bold text-slate-500">المتاجر التجريبية</div>
-                <div class="text-sm font-black text-sky-600 font-mono" id="shortcut-trial-count">0</div>
-              </button>
-
-              <button onclick="filterStoresBy('pending')" class="bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 p-2.5 rounded-2xl text-center transition border border-slate-200 dark:border-slate-800">
-                <div class="text-[11px] font-bold text-slate-500">بانتظار التأكيد</div>
-                <div class="text-sm font-black text-amber-500 font-mono" id="shortcut-pending-count">0</div>
-              </button>
-
-              <button onclick="filterStoresBy('expired')" class="bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 p-2.5 rounded-2xl text-center transition border border-slate-200 dark:border-slate-800">
-                <div class="text-[11px] font-bold text-slate-500">متاجر منتهية</div>
-                <div class="text-sm font-black text-red-500 font-mono" id="shortcut-expired-count">0</div>
-              </button>
-
-              <button onclick="filterStoresBy('blocked')" class="bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 p-2.5 rounded-2xl text-center transition border border-slate-200 dark:border-slate-800">
-                <div class="text-[11px] font-bold text-slate-500">متاجر موقوفة</div>
-                <div class="text-sm font-black text-slate-600 dark:text-slate-400 font-mono" id="shortcut-blocked-count">0</div>
-              </button>
-            </div>
-
-          </div>
-
-        </div>
-
-        <!-- Latest Stores & Recent Approval Requests Teaser -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
-          <!-- Recent Requests Box -->
-          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm space-y-3">
-            <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <h3 class="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
-                <i class="fa-solid fa-receipt text-amber-500"></i>
-                <span>أحدث طلبات التحويل البنكي الواردة</span>
-              </h3>
-              <button onclick="switchTab('approvals')" class="text-xs text-brand-600 font-bold hover:underline">
-                عرض الكل
-              </button>
-            </div>
-
-            <div id="dashboard-recent-requests-list" class="space-y-2.5">
-              <!-- Rendered via JS -->
-            </div>
-          </div>
-
-          <!-- Recent Registered Stores Box -->
-          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm space-y-3">
-            <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <h3 class="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
-                <i class="fa-solid fa-shop text-brand-600"></i>
-                <span>أحدث المتاجر المسجلة في كاشدار</span>
-              </h3>
-              <button onclick="switchTab('stores')" class="text-xs text-brand-600 font-bold hover:underline">
-                إدارة المتاجر
-              </button>
-            </div>
-
-            <div id="dashboard-recent-stores-list" class="space-y-2.5">
-              <!-- Rendered via JS -->
-            </div>
-          </div>
-
-        </div>
-
-      </div>
-
-      <!-- ================= 2. TAB: STORES & MERCHANTS MANAGEMENT ================= -->
-      <div id="tab-stores" class="hidden space-y-6">
-        
-        <!-- Header & Toolbar -->
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm space-y-4">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 class="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <i class="fa-solid fa-store text-brand-600"></i>
-                <span>إدارة المتاجر والتجار</span>
-              </h2>
-              <p class="text-xs text-slate-500 mt-0.5">قائمة بجميع المتاجر المسجلة مع تفاصيل التواصل، النشاط، وحالة الصلاحية</p>
-            </div>
-
-            <div class="flex items-center gap-2">
-              <button onclick="openNewStoreModal()" class="bg-brand-600 hover:bg-brand-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md shadow-brand-600/20 transition">
-                <i class="fa-solid fa-plus"></i>
-                <span>إضافة متجر</span>
-              </button>
-              <button onclick="exportStoresCSV()" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold px-3 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition">
-                <i class="fa-solid fa-file-csv"></i>
-                <span>تصدير CSV</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Search & Filters Bar -->
-          <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-2">
-            <!-- Search input -->
-            <div class="sm:col-span-6 relative">
-              <i class="fa-solid fa-magnifying-glass absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-              <input type="text" id="store-search-input" oninput="renderStoresTable()" placeholder="ابحث باسم المحل، رقم الهاتف، البريد، أو المالك..." class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 pr-9 pl-3 py-2.5 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500">
-            </div>
-
-            <!-- Status Filter -->
-            <div class="sm:col-span-3">
-              <select id="store-status-filter" onchange="renderStoresTable()" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2.5 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500 font-bold">
-                <option value="ALL">جميع الحالات</option>
-                <option value="trial">الفترة التجريبية (72h)</option>
-                <option value="monthly">نشط - باقة شهرية</option>
-                <option value="annual">نشط - باقة سنوية</option>
-                <option value="pending">بانتظار الاعتماد</option>
-                <option value="expired">منتهي الصلاحية</option>
-                <option value="blocked">محظور / موقوف</option>
-              </select>
-            </div>
-
-            <!-- Business Type Filter -->
-            <div class="sm:col-span-3">
-              <select id="store-type-filter" onchange="renderStoresTable()" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2.5 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500 font-bold">
-                <option value="ALL">جميع الأنشطة</option>
-                <option value="سوبرماركت وبقالة">سوبرماركت وبقالة</option>
-                <option value="مطعم ومقهى">مطعم ومقهى</option>
-                <option value="صيدلية">صيدلية ومستلزمات</option>
-                <option value="إلكترونيات وهواتف">إلكترونيات وهواتف</option>
-                <option value="مغلقات ومواد بناء">مغلقات ومواد بناء</option>
-                <option value="محامص وبهارات">محامص وبهارات</option>
-                <option value="أخرى">أخرى</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- Stores Table Container -->
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-right text-xs">
-              <thead class="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold">
-                <tr>
-                  <th class="py-3.5 px-4">المتجر والمالك</th>
-                  <th class="py-3.5 px-4">نوع النشاط</th>
-                  <th class="py-3.5 px-4">الاتصال والتواصل</th>
-                  <th class="py-3.5 px-4">تاريخ التسجيل</th>
-                  <th class="py-3.5 px-4">حالة الاشتراك والصلاحية</th>
-                  <th class="py-3.5 px-4 text-center">إجراءات سريعة</th>
-                </tr>
-              </thead>
-              <tbody id="stores-table-body" class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                <!-- Populated dynamically via JS -->
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Empty State -->
-          <div id="stores-empty-state" class="hidden p-10 text-center space-y-2">
-            <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 mx-auto flex items-center justify-center text-xl">
-              <i class="fa-solid fa-magnifying-glass"></i>
-            </div>
-            <div class="font-bold text-slate-700 dark:text-slate-300">لا توجد نتائج مطابقة</div>
-            <p class="text-xs text-slate-400">جرب تغيير كلمات البحث أو إعادة ضبط الفلاتر</p>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- ================= 3. TAB: SUBSCRIPTION APPROVAL REQUESTS ================= -->
-      <div id="tab-approvals" class="hidden space-y-6">
-        
-        <!-- Header Banner with Account Details -->
-        <div class="bg-slate-900 text-white p-5 sm:p-6 rounded-3xl border border-slate-800 shadow-xl space-y-4">
-          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-            <div>
+          <!-- Recent Pending Subscriptions Quick Box -->
+          <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <span class="bg-amber-400 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-full">مركز الاعتماد المالي</span>
-                <span class="text-xs text-emerald-400 font-bold"><i class="fa-solid fa-shield-check"></i> تحويل مباشر</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                <h3 class="font-bold text-sm text-white">آخر إشعارات التحويل الواردة (حساب 59189)</h3>
               </div>
-              <h2 class="text-xl sm:text-2xl font-black mt-1">طلبات التجديد والاشتراك المحولة لحساب (59189)</h2>
-              <p class="text-xs text-slate-400 mt-0.5">
-                تأكد من إشعار التحويل البنكي أو آخر 4 أرقام من العملية، ثم قم بتفعيل الاشتراك أو تمديد التجربة بنقرة واحدة.
-              </p>
+              <button onclick="switchTab('subscriptions')" class="text-xs text-brand-400 hover:text-brand-300 font-bold">
+                عرض كافة الطلبات &larr;
+              </button>
             </div>
 
-            <!-- Official Target Account Badge -->
-            <div class="bg-slate-800/90 border border-slate-700 p-3.5 rounded-2xl flex items-center gap-4 shrink-0">
-              <div class="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-400 flex items-center justify-center text-lg">
-                <i class="fa-solid fa-building-columns"></i>
-              </div>
-              <div>
-                <div class="text-[10px] text-slate-400">الحساب المعتمد للاستقبال:</div>
-                <div class="text-lg font-black font-mono text-emerald-400">59189</div>
-                <div class="text-[11px] font-bold text-white">محمد ياسر إبراهيم محمد</div>
-              </div>
+            <div id="dashboard-recent-subs" class="space-y-2">
+              <div class="p-6 text-center text-slate-500 text-xs">جاري تحميل البيانات...</div>
             </div>
           </div>
 
-          <!-- Quick Filter Pills for Requests -->
-          <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <div class="flex items-center gap-2">
-              <button onclick="filterRequestsBy('ALL')" id="req-pill-all" class="bg-brand-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition">
-                الكل (<span id="req-count-all">0</span>)
-              </button>
-              <button onclick="filterRequestsBy('pending')" id="req-pill-pending" class="bg-slate-800 text-amber-400 hover:bg-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-                <span>بانتظار الاعتماد (<span id="req-count-pending">0</span>)</span>
-              </button>
-              <button onclick="filterRequestsBy('approved')" id="req-pill-approved" class="bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl transition">
-                تم التفعيل (<span id="req-count-approved">0</span>)
-              </button>
-              <button onclick="filterRequestsBy('rejected')" id="req-pill-rejected" class="bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl transition">
-                المرفوضة (<span id="req-count-rejected">0</span>)
-              </button>
-            </div>
-
-            <div class="text-xs text-slate-400 font-mono">
-              إجمالي مبالغ الطلبات المعلقة: <span id="req-pending-total-amount" class="text-amber-400 font-bold font-mono">0 ج.س</span>
-            </div>
-          </div>
         </div>
 
-        <!-- Requests Table -->
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-right text-xs">
-              <thead class="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold">
-                <tr>
-                  <th class="py-3.5 px-4">معرّف الطلب والتاريخ</th>
-                  <th class="py-3.5 px-4">المتجر والمشترك</th>
-                  <th class="py-3.5 px-4">نوع الباقة والمبلغ</th>
-                  <th class="py-3.5 px-4">تفاصيل وإثبات التحويل</th>
-                  <th class="py-3.5 px-4">حالة الطلب</th>
-                  <th class="py-3.5 px-4 text-center">أزرار الحركة المباشرة</th>
-                </tr>
-              </thead>
-              <tbody id="requests-table-body" class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                <!-- Populated dynamically via JS -->
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Empty State -->
-          <div id="requests-empty-state" class="hidden p-10 text-center space-y-2">
-            <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 mx-auto flex items-center justify-center text-xl">
-              <i class="fa-solid fa-receipt"></i>
-            </div>
-            <div class="font-bold text-slate-700 dark:text-slate-300">لا توجد طلبات اعتماد مطابقة</div>
-            <p class="text-xs text-slate-400">ستظهر هنا أي طلبات تحويل جديدة فور إرسالها من التجار</p>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- ================= 4. TAB: FINANCIAL ANALYTICS ================= -->
-      <div id="tab-analytics" class="hidden space-y-6">
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+        <!-- TAB 2: STORES (جدول المتاجر) -->
+        <div id="tab-stores" class="tab-pane space-y-4 hidden">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-950 p-4 rounded-2xl border border-slate-800">
             <div>
-              <h2 class="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <i class="fa-solid fa-coins text-amber-500"></i>
-                <span>التقارير المالية وحركة الاشتراكات</span>
-              </h2>
-              <p class="text-xs text-slate-500 mt-0.5">تفصيل الإيرادات المحصلة في حساب محمد ياسر إبراهيم محمد (59189)</p>
-            </div>
-            <button onclick="exportRevenueCSV()" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition">
-              <i class="fa-solid fa-download"></i>
-              <span>تصدير تقرير الإيرادات</span>
-            </button>
-          </div>
-
-          <!-- Cards Summary -->
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-1">
-              <span class="text-xs text-slate-500 font-bold">إجمالي مبيعات الباقة الشهرية (50,000 ج.س)</span>
-              <div id="analytics-monthly-total" class="text-2xl font-black font-mono text-slate-800 dark:text-white">0 ج.س</div>
-              <span id="analytics-monthly-count" class="text-[11px] text-brand-600 font-bold">0 اشتراك</span>
+              <h2 class="text-base font-bold text-white">سجل المتاجر المسجلة (جدول stores)</h2>
+              <p class="text-xs text-slate-400">جميع المتاجر التي سجلت في كاشدار مع حالة التجربة (72 ساعة) والاشتراك</p>
             </div>
 
-            <div class="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-1">
-              <span class="text-xs text-slate-500 font-bold">إجمالي مبيعات الباقة السنوية (500,000 ج.س)</span>
-              <div id="analytics-annual-total" class="text-2xl font-black font-mono text-amber-500">0 ج.س</div>
-              <span id="analytics-annual-count" class="text-[11px] text-amber-600 font-bold">0 اشتراك</span>
-            </div>
-
-            <div class="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-1">
-              <span class="text-xs text-slate-500 font-bold">المجموع الكلي للإيرادات الحقيقية</span>
-              <div id="analytics-grand-total" class="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">0 ج.س</div>
-              <span class="text-[11px] text-emerald-600 font-bold">مكتمل ومؤكد بنكياً</span>
+            <!-- Search & Filter -->
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <div class="relative flex-1 sm:w-64">
+                <i class="fa-solid fa-magnifying-glass absolute right-3 top-3 text-slate-500 text-xs"></i>
+                <input type="text" id="store-search-input" oninput="filterStoresTable()" placeholder="ابحث باسم المتجر أو الهاتف..." class="w-full bg-slate-900 border border-slate-800 pr-9 pl-3 py-2 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+              </div>
+              <button onclick="loadAllData()" class="bg-slate-900 border border-slate-800 hover:bg-slate-800 px-3 py-2 rounded-xl text-xs text-slate-300">
+                <i class="fa-solid fa-rotate-right"></i>
+              </button>
             </div>
           </div>
 
-          <!-- Transactions Log Table -->
-          <div class="pt-4 space-y-2">
-            <h3 class="font-bold text-slate-800 dark:text-white text-sm">سجل التحويلات المؤكدة المعتمدة</h3>
-            <div class="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl">
+          <div class="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
               <table class="w-full text-right text-xs">
-                <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 font-bold">
+                <thead class="bg-slate-900/80 text-slate-400 font-bold border-b border-slate-800">
                   <tr>
-                    <th class="py-3 px-4">رقم الحركة</th>
-                    <th class="py-3 px-4">اسم المتجر</th>
-                    <th class="py-3 px-4">الباقة المفعلة</th>
-                    <th class="py-3 px-4">المبلغ المستلم</th>
-                    <th class="py-3 px-4">تاريخ التفعيل</th>
-                    <th class="py-3 px-4">حساب الاستقبال</th>
+                    <th class="p-3.5">اسم المتجر</th>
+                    <th class="p-3.5">رقم الهاتف</th>
+                    <th class="p-3.5">نوع النشاط</th>
+                    <th class="p-3.5">المدينة / العنوان</th>
+                    <th class="p-3.5">تاريخ التسجيل</th>
+                    <th class="p-3.5">فترة التجربة (72 ساعة)</th>
+                    <th class="p-3.5">الحالة</th>
+                    <th class="p-3.5 text-center">الإجراءات</th>
                   </tr>
                 </thead>
-                <tbody id="analytics-transactions-body" class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                  <!-- Populated via JS -->
+                <tbody id="stores-table-body" class="divide-y divide-slate-800/60 font-mono text-slate-300">
+                  <tr><td colspan="8" class="p-6 text-center text-slate-500 font-sans">جاري التحميل...</td></tr>
                 </tbody>
               </table>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- ================= 5. TAB: SUPABASE INTEGRATION & SETTINGS ================= -->
-      <div id="tab-settings" class="hidden space-y-6">
-        
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-5">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+        <!-- TAB 3: SUBSCRIPTIONS (طلبات الاشتراكات) -->
+        <div id="tab-subscriptions" class="tab-pane space-y-4 hidden">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-950 p-4 rounded-2xl border border-slate-800">
             <div>
               <div class="flex items-center gap-2">
-                <h2 class="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <i class="fa-solid fa-database text-emerald-500"></i>
-                  <span>تهيئة ربط قاعدة البيانات السحابية (Supabase API)</span>
-                </h2>
-                <span class="bg-emerald-500/10 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded-md">مُهيّأ للمستقبل</span>
+                <h2 class="text-base font-bold text-white">إشعارات وطلبات التحويل (جدول subscriptions)</h2>
+                <span class="bg-amber-500/20 text-amber-300 text-xs px-2.5 py-0.5 rounded-full font-bold border border-amber-500/30">حساب 59189</span>
               </div>
-              <p class="text-xs text-slate-500 mt-1">
-                تتيح لك هذه الإعدادات ربط لوحة المالك ومتاجر كاشدار مع Supabase لتخزين بيانات المتاجر والاشتراكات سحابياً.
-              </p>
+              <p class="text-xs text-slate-400">راجع آخر 4 أرقام من عملية بنكك أو صورة الإشعار وقم باعتماد التفعيل الفوري للمتجر</p>
             </div>
 
-            <div class="flex items-center gap-2">
-              <span id="supabase-status-indicator" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                <span>وضع التخزين المحلي (Local Persistence)</span>
-              </span>
-            </div>
-          </div>
-
-          <!-- Configuration Form -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                رابط مشروع سوبابيز (Supabase Project URL)
-              </label>
-              <input type="text" id="supabase-url" placeholder="https://your-project.supabase.co" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3.5 py-2.5 rounded-xl text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500">
-              <p class="text-[11px] text-slate-400 mt-1">يتم الحصول عليه من لوحة تحكم Supabase > Project Settings > API</p>
-            </div>
-
-            <div>
-              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                مفتاح النشر العام (Supabase Anon / Public Key)
-              </label>
-              <input type="password" id="supabase-anon-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3.5 py-2.5 rounded-xl text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500">
-              <p class="text-[11px] text-slate-400 mt-1">المفتاح الآمن والمصرح به للقراءة والكتابة في التطبيق</p>
-            </div>
-          </div>
-
-          <!-- Connection Buttons -->
-          <div class="flex flex-wrap items-center gap-3 pt-2">
-            <button onclick="saveSupabaseSettings()" class="bg-brand-600 hover:bg-brand-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md shadow-brand-600/20 transition">
-              <i class="fa-solid fa-floppy-disk"></i>
-              <span>حفظ إعدادات الربط</span>
-            </button>
-
-            <button onclick="testSupabaseConnection()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition">
-              <i class="fa-solid fa-plug"></i>
-              <span>اختبار الاتصال</span>
-            </button>
-
-            <button onclick="toggleSupabaseSync()" id="btn-toggle-sync" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition">
+            <button onclick="loadAllData()" class="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-2 shadow">
               <i class="fa-solid fa-arrows-rotate"></i>
-              <span>تبديل نمط التخزين (محلي / سحابي)</span>
+              <span>تحديث الطلبات</span>
             </button>
           </div>
 
-          <!-- Ready-to-use SQL Schema for Supabase Tables -->
-          <div class="border-t border-slate-100 dark:border-slate-800 pt-5 space-y-3">
-            <div class="flex items-center justify-between">
+          <div class="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+              <table class="w-full text-right text-xs">
+                <thead class="bg-slate-900/80 text-slate-400 font-bold border-b border-slate-800">
+                  <tr>
+                    <th class="p-3.5">تاريخ الطلب</th>
+                    <th class="p-3.5">اسم المتجر</th>
+                    <th class="p-3.5">رقم الهاتف</th>
+                    <th class="p-3.5">الباقة</th>
+                    <th class="p-3.5">المبلغ</th>
+                    <th class="p-3.5">آخر 4 أرقام التحويل</th>
+                    <th class="p-3.5">صورة الإشعار</th>
+                    <th class="p-3.5">حالة الطلب</th>
+                    <th class="p-3.5 text-center">قرار التفعيل</th>
+                  </tr>
+                </thead>
+                <tbody id="subscriptions-table-body" class="divide-y divide-slate-800/60 font-mono text-slate-300">
+                  <tr><td colspan="9" class="p-6 text-center text-slate-500 font-sans">جاري التحميل...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 4: MANUAL ACTIVATION (التفعيل اليدوي المباشر) -->
+        <div id="tab-manual" class="tab-pane space-y-4 hidden">
+          <div class="max-w-xl mx-auto bg-slate-950 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <div class="border-b border-slate-800 pb-3">
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-key text-amber-400"></i>
+                <span>تفعيل متجر يدوياً دون إشعار</span>
+              </h3>
+              <p class="text-xs text-slate-400 mt-1">لتفعيل التراخيص للتجار الذين سددوا نقداً أو عبر قنوات أخرى</p>
+            </div>
+
+            <form onsubmit="handleManualActivation(event)" class="space-y-4">
               <div>
-                <h3 class="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
-                  <i class="fa-solid fa-code text-brand-600"></i>
-                  <span>كود مخطط الجداول الجاهز (Supabase SQL Schema)</span>
-                </h3>
-                <p class="text-xs text-slate-500">انسخ الكود والصقه في SQL Editor داخل Supabase لإنشاء الجداول بنقرة واحدة</p>
+                <label class="block text-xs font-bold text-slate-300 mb-1">رقم هاتف المتجر المسجل في Supabase *</label>
+                <input type="tel" id="manual-phone" required placeholder="09xxxxxxx أو 01xxxxxxx" class="w-full bg-slate-900 border border-slate-800 px-3.5 py-2.5 rounded-xl text-xs font-mono text-emerald-400 focus:outline-none focus:border-brand-500">
               </div>
-              <button onclick="copySqlSchema()" class="bg-slate-900 text-emerald-400 hover:text-white px-3 py-1.5 rounded-xl text-xs font-mono font-bold border border-slate-700 flex items-center gap-1.5 transition">
-                <i class="fa-regular fa-copy"></i>
-                <span>نسخ كود SQL</span>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-300 mb-1">نوع الباقة *</label>
+                  <select id="manual-plan" class="w-full bg-slate-900 border border-slate-800 px-3 py-2.5 rounded-xl text-xs text-slate-200">
+                    <option value="monthly">باقة شهرية (50,000 جنيه)</option>
+                    <option value="annual">باقة سنوية (500,000 جنيه)</option>
+                    <option value="trial_extend">تمديد تجريبي (+72 ساعة)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-300 mb-1">مدة الترخيص (أيام) *</label>
+                  <input type="number" id="manual-days" value="30" min="1" class="w-full bg-slate-900 border border-slate-800 px-3.5 py-2.5 rounded-xl text-xs font-mono">
+                </div>
+              </div>
+
+              <button type="submit" id="manual-submit-btn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl text-xs transition shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-check-double"></i>
+                <span>تفعيل المتجر فورياً في Supabase</span>
               </button>
-            </div>
-
-            <pre id="sql-schema-box" class="bg-slate-950 text-slate-300 p-4 rounded-2xl text-[11px] font-mono overflow-x-auto max-h-60 border border-slate-800 leading-relaxed">
--- 1. جدول المتاجر المسجلة (stores)
-CREATE TABLE IF NOT EXISTS public.stores (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    store_name TEXT NOT NULL,
-    owner_name TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    email TEXT,
-    business_type TEXT DEFAULT 'سوبرماركت وبقالة',
-    address TEXT DEFAULT 'السودان',
-    status TEXT DEFAULT 'trial', -- 'trial', 'monthly', 'annual', 'expired', 'blocked'
-    trial_started_at TIMESTAMPTZ DEFAULT now(),
-    subscription_expires_at TIMESTAMPTZ NOT NULL,
-    is_blocked BOOLEAN DEFAULT false,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 2. جدول طلبات التحويل البنكي والاشتراك (subscription_requests)
-CREATE TABLE IF NOT EXISTS public.subscription_requests (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    store_id UUID REFERENCES public.stores(id) ON DELETE CASCADE,
-    plan_type TEXT NOT NULL, -- 'monthly' (50,000) or 'annual' (500,000)
-    amount NUMERIC NOT NULL,
-    transfer_account TEXT DEFAULT '59189',
-    account_holder TEXT DEFAULT 'محمد ياسر إبراهيم محمد',
-    last4_digits TEXT,
-    receipt_image_url TEXT,
-    payment_method TEXT DEFAULT 'بنكك - بنك الخرطوم',
-    status TEXT DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
-    notes TEXT,
-    created_at TIMESTAMPTZ DEFAULT now(),
-    approved_at TIMESTAMPTZ
-);
-
--- 3. تفعيل الحماية RLS
-ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.subscription_requests ENABLE ROW LEVEL SECURITY;
-            </pre>
-          </div>
-
-          <!-- Reset & Data Management -->
-          <div class="border-t border-slate-100 dark:border-slate-800 pt-5 flex items-center justify-between">
-            <div>
-              <div class="text-xs font-bold text-slate-800 dark:text-white">إعادة تعيين البيانات التجريبية</div>
-              <div class="text-[11px] text-slate-400">يمكنك استعادة بيانات العينة الافتراضية لأصحاب المتاجر في السودان في أي وقت</div>
-            </div>
-            <button onclick="resetToDefaultData()" class="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/30 dark:hover:bg-red-900/40 text-xs font-bold px-3 py-2 rounded-xl border border-red-200 dark:border-red-800 transition">
-              <i class="fa-solid fa-arrows-rotate ml-1"></i> استعادة البيانات الافتراضية
-            </button>
+            </form>
           </div>
         </div>
 
-      </div>
+      </main>
+    </div>
 
-    </main>
   </div>
 
-  <!-- ================= MODALS & DIALOGS ================= -->
-
-  <!-- 1. RECEIPT IMAGE PREVIEW MODAL -->
-  <div id="receipt-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-5 shadow-2xl relative text-right border border-slate-200 dark:border-slate-800 space-y-4">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-        <h3 class="font-bold text-slate-800 dark:text-white text-base flex items-center gap-2">
-          <i class="fa-solid fa-image text-brand-600"></i>
-          <span>معاينة إشعار التحويل البنكي</span>
-        </h3>
-        <button onclick="closeModal('receipt-modal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+  <!-- Modal for Receipt Preview -->
+  <div id="image-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-4 relative">
+      <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
+        <span class="text-xs font-bold text-slate-300">معاينة صورة إشعار التحويل</span>
+        <button onclick="closeModal('image-modal')" class="text-slate-400 hover:text-white w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
-
-      <!-- Receipt Details Box -->
-      <div class="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl text-xs space-y-1.5 font-medium border border-slate-200 dark:border-slate-700">
-        <div class="flex justify-between">
-          <span class="text-slate-500">المتجر:</span>
-          <span id="receipt-modal-store-name" class="font-bold text-slate-800 dark:text-white">-</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-500">حساب الاستقبال:</span>
-          <span class="font-bold font-mono text-emerald-600 dark:text-emerald-400">59189 - محمد ياسر إبراهيم محمد</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-500">نوع الباقة والمبلغ:</span>
-          <span id="receipt-modal-plan" class="font-bold font-mono text-amber-500">-</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-500">آخر 4 أرقام من العملية:</span>
-          <span id="receipt-modal-last4" class="font-bold font-mono text-slate-800 dark:text-white">-</span>
-        </div>
-      </div>
-
-      <!-- Image Display Area -->
-      <div class="bg-slate-950 rounded-2xl overflow-hidden min-h-[280px] max-h-[420px] flex items-center justify-center border border-slate-800 relative">
-        <img id="receipt-modal-img" src="" alt="إشعار التحويل" class="max-h-[400px] w-auto object-contain transition-transform duration-300">
-        <div id="receipt-modal-no-img" class="hidden text-center p-6 space-y-2 text-slate-400">
-          <i class="fa-solid fa-file-invoice text-3xl opacity-50"></i>
-          <p class="text-xs">تم تأكيد العملية بواسطة رقم الإشعار دون إرفاق صورة</p>
-        </div>
-      </div>
-
-      <!-- Action Footer inside Modal -->
-      <div class="flex gap-2 pt-1">
-        <button id="receipt-modal-approve-btn" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-brand-600/20 transition">
-          <i class="fa-solid fa-check-double"></i>
-          <span>تأكيد وتفعيل الاشتراك فوراً</span>
-        </button>
-        <button onclick="closeModal('receipt-modal')" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl text-xs font-bold transition">
-          إغلاق
-        </button>
+      <div class="max-h-[70vh] overflow-auto flex items-center justify-center p-2 bg-slate-950 rounded-xl">
+        <img id="preview-image-elem" src="" alt="إشعار التحويل" class="max-w-full rounded-lg object-contain">
       </div>
     </div>
   </div>
 
-  <!-- 2. ADD / EDIT STORE MODAL -->
-  <div id="store-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-5 shadow-2xl relative text-right border border-slate-200 dark:border-slate-800 space-y-4">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-        <h3 id="store-modal-title" class="font-bold text-slate-800 dark:text-white text-base flex items-center gap-2">
-          <i class="fa-solid fa-store text-brand-600"></i>
-          <span>تسجيل متجر جديد</span>
-        </h3>
-        <button onclick="closeModal('store-modal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <form onsubmit="handleSaveStore(event)" class="space-y-3">
-        <input type="hidden" id="edit-store-id">
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">اسم المحل / المتجر *</label>
-            <input type="text" id="store-form-name" required placeholder="مثال: سوبرماركت البركة" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500">
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">اسم التاجر / المالك *</label>
-            <input type="text" id="store-form-owner" required placeholder="مثال: أحمد عبد الله" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">رقم الهاتف (واتساب) *</label>
-            <input type="tel" id="store-form-phone" required placeholder="0912345678" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500">
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">البريد الإلكتروني</label>
-            <input type="email" id="store-form-email" placeholder="store@example.com" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">نوع النشاط</label>
-            <select id="store-form-type" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500 font-bold">
-              <option value="سوبرماركت وبقالة">سوبرماركت وبقالة</option>
-              <option value="مطعم ومقهى">مطعم ومقهى</option>
-              <option value="صيدلية ومستلزمات">صيدلية ومستلزمات</option>
-              <option value="إلكترونيات وهواتف">إلكترونيات وهواتف</option>
-              <option value="مغلقات ومواد بناء">مغلقات ومواد بناء</option>
-              <option value="محامص وبهارات">محامص وبهارات</option>
-              <option value="أخرى">أخرى</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">المدينة / الموقع</label>
-            <input type="text" id="store-form-address" placeholder="الخرطوم / بورتسودان / عطبرة..." class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500">
-          </div>
-        </div>
-
-        <!-- Initial Status & Duration -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">خطة الباقة المبدئية</label>
-            <select id="store-form-plan" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500 font-bold">
-              <option value="trial">فترة تجريبية (72 ساعة)</option>
-              <option value="monthly">باقة شهرية (30 يوماً - 50,000 ج.س)</option>
-              <option value="annual">باقة سنوية (365 يوماً - 500,000 ج.س)</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">حالة الحساب</label>
-            <select id="store-form-status" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500 font-bold">
-              <option value="active">نشط وساري</option>
-              <option value="pending">بانتظار التحقق</option>
-              <option value="blocked">محظور وموقوف</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="pt-3 flex gap-2">
-          <button type="submit" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-brand-600/20 transition">
-            <i class="fa-solid fa-floppy-disk"></i>
-            <span>حفظ بيانات المتجر</span>
-          </button>
-          <button type="button" onclick="closeModal('store-modal')" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl text-xs font-bold transition">
-            إلغاء
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 3. EXTEND TRIAL / QUICK ACTION DIALOG -->
-  <div id="extend-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full p-5 shadow-2xl relative text-right border border-slate-200 dark:border-slate-800 space-y-4">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-        <h3 class="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
-          <i class="fa-solid fa-clock-rotate-left text-sky-500"></i>
-          <span>تمديد فترة التجربة للمتجر</span>
-        </h3>
-        <button onclick="closeModal('extend-modal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <input type="hidden" id="extend-store-id">
-
-      <div class="space-y-2 text-xs">
-        <p class="text-slate-600 dark:text-slate-300">
-          اختر المدة الإضافية لتمديد صلاحية المتجر: <strong id="extend-store-name" class="text-brand-600"></strong>
-        </p>
-
-        <div class="grid grid-cols-3 gap-2 pt-2">
-          <button onclick="applyTrialExtension(24)" class="bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 border border-sky-300 text-sky-700 dark:text-sky-300 font-bold p-3 rounded-2xl text-center transition">
-            <div class="text-base font-black font-mono">+24</div>
-            <div class="text-[10px]">ساعة</div>
-          </button>
-
-          <button onclick="applyTrialExtension(48)" class="bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 border border-sky-300 text-sky-700 dark:text-sky-300 font-bold p-3 rounded-2xl text-center transition">
-            <div class="text-base font-black font-mono">+48</div>
-            <div class="text-[10px]">ساعة</div>
-          </button>
-
-          <button onclick="applyTrialExtension(72)" class="bg-brand-50 dark:bg-brand-950/60 hover:bg-brand-100 border border-brand-300 text-brand-700 dark:text-brand-300 font-bold p-3 rounded-2xl text-center transition">
-            <div class="text-base font-black font-mono">+72</div>
-            <div class="text-[10px]">ساعة (كاملة)</div>
-          </button>
-        </div>
-      </div>
-
-      <div class="pt-2">
-        <button onclick="closeModal('extend-modal')" class="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-2 rounded-xl text-xs font-bold">
-          إلغاء
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 4. TOAST NOTIFICATIONS POPUP -->
-  <div id="toast-container" class="fixed bottom-5 left-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
-
-  <!-- ================= JAVASCRIPT APPLICATION CORE ================= -->
+  <!-- JAVASCRIPT SUPER ADMIN LOGIC -->
   <script>
-    /* =========================================================================
-       1. DATA STRUCTURES & DEFAULT SEED DATA
-       ========================================================================= */
-    const SUPER_STORAGE_KEY = 'CASHDAR_SUPER_ADMIN_STORAGE_V1';
-    const SUPABASE_CONFIG_KEY = 'CASHDAR_SUPABASE_CONFIG_V1';
-    const POS_LOCAL_KEY = 'CASHDAR_MERCHANT_POS_V1';
+    // Configuration
+    const SUPER_ADMIN_PASSWORD = "Mpmomimu11$";
+    const SUPABASE_URL = "https://ywhhncvtznvazhpacxte.supabase.co";
+    const SUPABASE_KEY = "Sb_publishable_m6uLiIBb_dFIvqTrOE5ojw_xMjaXmBM";
+    
+    let supabase = null;
+    let isAuthenticated = false;
+    let allStores = [];
+    let allSubscriptions = [];
 
-    // Official Bank Account Details
-    const OFFICIAL_BANK = {
-      accountNumber: '59189',
-      accountHolder: 'محمد ياسر إبراهيم محمد',
-      banks: 'بنك الخرطوم (بنكك) / بنك فيصل (فوري)',
-      monthlyPrice: 50000,
-      annualPrice: 500000
-    };
+    try {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      console.log("Super Admin Supabase client initialized.");
+    } catch(err) {
+      console.error("Supabase Init Error:", err);
+    }
 
-    // Realistic Sudanese Merchants Seed Data
-    const DEFAULT_SEED_DATA = {
-      stores: [
-        {
-          id: 'store_101',
-          name: 'سوبرماركت البركة',
-          ownerName: 'عبد الرحمن الصادق',
-          phone: '0912345678',
-          email: 'albaraka.sd@gmail.com',
-          businessType: 'سوبرماركت وبقالة',
-          address: 'الخرطوم - شارع الستين',
-          status: 'monthly', // monthly active
-          plan: 'monthly',
-          trialStartedAt: Date.now() - (15 * 24 * 3600 * 1000),
-          subscriptionExpiresAt: Date.now() + (15 * 24 * 3600 * 1000), // 15 days left
-          createdAt: Date.now() - (15 * 24 * 3600 * 1000),
-          isBlocked: false,
-          totalSales: 48,
-          totalRevenue: 284000
-        },
-        {
-          id: 'store_102',
-          name: 'صيدلية الشفاء الكبرى',
-          ownerName: 'د. معاوية حسن',
-          phone: '0123987654',
-          email: 'alshifa.pharmacy@gmail.com',
-          businessType: 'صيدلية ومستلزمات',
-          address: 'أمدرمان - الشهداء',
-          status: 'annual', // annual active
-          plan: 'annual',
-          trialStartedAt: Date.now() - (60 * 24 * 3600 * 1000),
-          subscriptionExpiresAt: Date.now() + (305 * 24 * 3600 * 1000), // ~10 months left
-          createdAt: Date.now() - (60 * 24 * 3600 * 1000),
-          isBlocked: false,
-          totalSales: 132,
-          totalRevenue: 1250000
-        },
-        {
-          id: 'store_103',
-          name: 'محامص بهارات النيلين',
-          ownerName: 'عثمان إبراهيم',
-          phone: '0998877665',
-          email: 'elneelain.spices@gmail.com',
-          businessType: 'محامص وبهارات',
-          address: 'بحري - سوق سعد قشرة',
-          status: 'trial', // trial 72h
-          plan: 'trial',
-          trialStartedAt: Date.now() - (36 * 3600 * 1000),
-          subscriptionExpiresAt: Date.now() + (36 * 3600 * 1000), // 36 hours remaining
-          createdAt: Date.now() - (36 * 3600 * 1000),
-          isBlocked: false,
-          totalSales: 9,
-          totalRevenue: 42000
-        },
-        {
-          id: 'store_104',
-          name: 'مطعم و كافيه واحة النخيل',
-          ownerName: 'ياسر الطاهر',
-          phone: '0901122334',
-          email: 'palmoasis.sd@gmail.com',
-          businessType: 'مطعم ومقهى',
-          address: 'بورتسودان - السوق الكبير',
-          status: 'pending', // pending approval
-          plan: 'monthly',
-          trialStartedAt: Date.now() - (73 * 3600 * 1000),
-          subscriptionExpiresAt: Date.now() - (1 * 3600 * 1000), // expired trial, waiting approval
-          createdAt: Date.now() - (73 * 3600 * 1000),
-          isBlocked: false,
-          totalSales: 22,
-          totalRevenue: 98000
-        },
-        {
-          id: 'store_105',
-          name: 'مغلق ومواد بناء الجزيرة',
-          ownerName: 'الفاضل النور',
-          phone: '0112233445',
-          email: 'gezira.hardware@gmail.com',
-          businessType: 'مغلقات ومواد بناء',
-          address: 'ودمدني - المنطقة الصناعية',
-          status: 'pending', // pending annual approval
-          plan: 'annual',
-          trialStartedAt: Date.now() - (74 * 3600 * 1000),
-          subscriptionExpiresAt: Date.now() - (2 * 3600 * 1000),
-          createdAt: Date.now() - (74 * 3600 * 1000),
-          isBlocked: false,
-          totalSales: 16,
-          totalRevenue: 340000
-        },
-        {
-          id: 'store_106',
-          name: 'مركز أوراس للإلكترونيات',
-          ownerName: 'مروان البشير',
-          phone: '0922334455',
-          email: 'auras.tech@gmail.com',
-          businessType: 'إلكترونيات وهواتف',
-          address: 'عطبرة - شارع الدكاترة',
-          status: 'expired', // Expired
-          plan: 'monthly',
-          trialStartedAt: Date.now() - (80 * 24 * 3600 * 1000),
-          subscriptionExpiresAt: Date.now() - (5 * 24 * 3600 * 1000),
-          createdAt: Date.now() - (80 * 24 * 3600 * 1000),
-          isBlocked: false,
-          totalSales: 41,
-          totalRevenue: 490000
-        },
-        {
-          id: 'store_107',
-          name: 'سوبرماركت التضامن الحديث',
-          ownerName: 'طارق عبد المحمود',
-          phone: '0966554433',
-          email: 'tadamun.super@gmail.com',
-          businessType: 'سوبرماركت وبقالة',
-          address: 'شندي - السوق الشعبي',
-          status: 'trial', // Trial expiring in 8 hours
-          plan: 'trial',
-          trialStartedAt: Date.now() - (64 * 3600 * 1000),
-          subscriptionExpiresAt: Date.now() + (8 * 3600 * 1000),
-          createdAt: Date.now() - (64 * 3600 * 1000),
-          isBlocked: false,
-          totalSales: 14,
-          totalRevenue: 52000
-        },
-        {
-          id: 'store_108',
-          name: 'مؤسسة الرواد التجارية',
-          ownerName: 'أشرف الجيلي',
-          phone: '0911002299',
-          email: 'alrowad.trd@gmail.com',
-          businessType: 'أخرى',
-          address: 'القضارف - السوق العمومي',
-          status: 'blocked', // Blocked
-          plan: 'trial',
-          trialStartedAt: Date.now() - (40 * 24 * 3600 * 1000),
-          subscriptionExpiresAt: Date.now() - (37 * 24 * 3600 * 1000),
-          createdAt: Date.now() - (40 * 24 * 3600 * 1000),
-          isBlocked: true,
-          totalSales: 2,
-          totalRevenue: 12000
-        }
-      ],
-      subscriptionRequests: [
-        {
-          id: 'REQ-2026-881',
-          storeId: 'store_104',
-          storeName: 'مطعم و كافيه واحة النخيل',
-          ownerName: 'ياسر الطاهر',
-          phone: '0901122334',
-          plan: 'monthly',
-          amount: 50000,
-          accountTarget: '59189',
-          accountHolder: 'محمد ياسر إبراهيم محمد',
-          last4Digits: '9421',
-          receiptImage: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
-          paymentMethod: 'بنكك - بنك الخرطوم',
-          status: 'pending', // pending approval
-          submittedAt: Date.now() - (45 * 60 * 1000), // 45 mins ago
-          notes: 'تحويل عبر تطبيق بنكك إلى الحساب 59189'
-        },
-        {
-          id: 'REQ-2026-882',
-          storeId: 'store_105',
-          storeName: 'مغلق ومواد بناء الجزيرة',
-          ownerName: 'الفاضل النور',
-          phone: '0112233445',
-          plan: 'annual',
-          amount: 500000,
-          accountTarget: '59189',
-          accountHolder: 'محمد ياسر إبراهيم محمد',
-          last4Digits: '3318',
-          receiptImage: 'https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=600&auto=format&fit=crop&q=80',
-          paymentMethod: 'فوري - بنك فيصل الإسلامي',
-          status: 'pending', // pending approval
-          submittedAt: Date.now() - (2 * 3600 * 1000), // 2 hours ago
-          notes: 'اشتراك سنوي كامل 500,000 ج.س'
-        },
-        {
-          id: 'REQ-2026-879',
-          storeId: 'store_101',
-          storeName: 'سوبرماركت البركة',
-          ownerName: 'عبد الرحمن الصادق',
-          phone: '0912345678',
-          plan: 'monthly',
-          amount: 50000,
-          accountTarget: '59189',
-          accountHolder: 'محمد ياسر إبراهيم محمد',
-          last4Digits: '6542',
-          receiptImage: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&auto=format&fit=crop&q=80',
-          paymentMethod: 'بنكك - بنك الخرطوم',
-          status: 'approved',
-          submittedAt: Date.now() - (15 * 24 * 3600 * 1000),
-          approvedAt: Date.now() - (15 * 24 * 3600 * 1000) + 180000,
-          notes: 'تم التأكيد وتفعيل الباقة الشهرية بنجاح'
-        },
-        {
-          id: 'REQ-2026-870',
-          storeId: 'store_102',
-          storeName: 'صيدلية الشفاء الكبرى',
-          ownerName: 'د. معاوية حسن',
-          phone: '0123987654',
-          plan: 'annual',
-          amount: 500000,
-          accountTarget: '59189',
-          accountHolder: 'محمد ياسر إبراهيم محمد',
-          last4Digits: '1109',
-          receiptImage: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
-          paymentMethod: 'بنكك - بنك الخرطوم',
-          status: 'approved',
-          submittedAt: Date.now() - (60 * 24 * 3600 * 1000),
-          approvedAt: Date.now() - (60 * 24 * 3600 * 1000) + 300000,
-          notes: 'تم تفعيل الاشتراك السنوي لمدة عام كامل'
-        }
-      ]
-    };
-
-    let AdminData = null;
-    let currentTab = 'dashboard';
-    let currentRequestsFilter = 'ALL';
-
-    /* =========================================================================
-       2. INITIALIZATION & STORAGE HANDLERS
-       ========================================================================= */
-    function initAdminData() {
-      const stored = localStorage.getItem(SUPER_STORAGE_KEY);
-      if (stored) {
-        try {
-          AdminData = JSON.parse(stored);
-        } catch (e) {
-          AdminData = JSON.parse(JSON.stringify(DEFAULT_SEED_DATA));
-        }
+    // Authentication Handlers
+    function togglePasswordVisibility() {
+      const input = document.getElementById('admin-password-input');
+      const icon = document.getElementById('toggle-pwd-icon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
       } else {
-        AdminData = JSON.parse(JSON.stringify(DEFAULT_SEED_DATA));
-        saveAdminData();
-      }
-
-      // Check if local merchant exists from POS app
-      checkAndSyncPOSMerchant();
-
-      // Setup UI
-      updateLiveClock();
-      setInterval(updateLiveClock, 1000);
-
-      // Render
-      refreshAllData();
-      loadSupabaseSettings();
-    }
-
-    function saveAdminData() {
-      localStorage.setItem(SUPER_STORAGE_KEY, JSON.stringify(AdminData));
-    }
-
-    // Connects with CASHDAR_MERCHANT_POS_V1 so the POS app in the same browser is visible
-    function checkAndSyncPOSMerchant() {
-      const posRaw = localStorage.getItem(POS_LOCAL_KEY);
-      if (!posRaw) return;
-      try {
-        const posState = JSON.parse(posRaw);
-        if (posState && posState.merchant && posState.merchant.storeName) {
-          const existing = AdminData.stores.find(s => s.id === 'pos_local_merchant');
-          const sub = posState.subscription || {};
-
-          let status = 'trial';
-          if (sub.isPaid) {
-            status = sub.plan === 'annual' ? 'annual' : 'monthly';
-          } else if (sub.pendingVerification) {
-            status = 'pending';
-          } else if (sub.expiryDate && Date.now() > sub.expiryDate) {
-            status = 'expired';
-          }
-
-          const localStoreObj = {
-            id: 'pos_local_merchant',
-            name: posState.merchant.storeName || 'متجر كاشدار الرئيسي',
-            ownerName: 'التاجر المحلي (POS)',
-            phone: posState.merchant.phone || '0900000000',
-            email: posState.merchant.email || 'pos@cashdar.app',
-            businessType: posState.merchant.businessType || 'سوبرماركت وبقالة',
-            address: posState.merchant.address || 'السودان',
-            status: status,
-            plan: sub.plan || 'trial',
-            trialStartedAt: sub.trialStartedAt || Date.now(),
-            subscriptionExpiresAt: sub.expiryDate || (Date.now() + 72 * 3600 * 1000),
-            createdAt: sub.trialStartedAt || Date.now(),
-            isBlocked: false,
-            totalSales: (posState.invoices || []).length,
-            totalRevenue: (posState.invoices || []).reduce((acc, inv) => acc + (inv.total || 0), 0)
-          };
-
-          if (existing) {
-            Object.assign(existing, localStoreObj);
-          } else {
-            AdminData.stores.unshift(localStoreObj);
-          }
-
-          // If there is pendingVerification, make sure a request is in the requests table
-          if (sub.pendingVerification && sub.last4Digits) {
-            const hasReq = AdminData.subscriptionRequests.some(r => r.storeId === 'pos_local_merchant' && r.status === 'pending');
-            if (!hasReq) {
-              AdminData.subscriptionRequests.unshift({
-                id: 'REQ-POS-' + Date.now().toString().slice(-4),
-                storeId: 'pos_local_merchant',
-                storeName: localStoreObj.name,
-                ownerName: localStoreObj.ownerName,
-                phone: localStoreObj.phone,
-                plan: sub.plan || 'monthly',
-                amount: sub.plan === 'annual' ? 500000 : 50000,
-                accountTarget: '59189',
-                accountHolder: 'محمد ياسر إبراهيم محمد',
-                last4Digits: sub.last4Digits,
-                receiptImage: sub.receiptImage || '',
-                paymentMethod: 'بنكك - بنك الخرطوم',
-                status: 'pending',
-                submittedAt: Date.now(),
-                notes: 'طلب وارد مباشرة من تطبيق الكاشير المحلي'
-              });
-            }
-          }
-          saveAdminData();
-        }
-      } catch (err) {
-        console.error('POS sync error:', err);
+        input.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
       }
     }
 
-    /* =========================================================================
-       3. NAVIGATION & TABS
-       ========================================================================= */
+    function handleLogin(e) {
+      if (e) e.preventDefault();
+      const pwdInput = document.getElementById('admin-password-input');
+      const errorMsg = document.getElementById('login-error-msg');
+      const enteredPassword = pwdInput.value;
+
+      if (enteredPassword === SUPER_ADMIN_PASSWORD) {
+        if (errorMsg) errorMsg.classList.add('hidden');
+        sessionStorage.setItem('cashdar_admin_auth', 'authenticated');
+        unlockDashboard();
+      } else {
+        if (errorMsg) errorMsg.classList.remove('hidden');
+        pwdInput.classList.add('border-rose-500');
+        pwdInput.value = '';
+        pwdInput.focus();
+      }
+    }
+
+    function unlockDashboard() {
+      isAuthenticated = true;
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('admin-app').classList.remove('hidden');
+      loadAllData();
+    }
+
+    function lockAdmin() {
+      isAuthenticated = false;
+      sessionStorage.removeItem('cashdar_admin_auth');
+      document.getElementById('admin-app').classList.add('hidden');
+      document.getElementById('login-screen').classList.remove('hidden');
+      const pwdInput = document.getElementById('admin-password-input');
+      if (pwdInput) {
+        pwdInput.value = '';
+        pwdInput.classList.remove('border-rose-500');
+      }
+      const errorMsg = document.getElementById('login-error-msg');
+      if (errorMsg) errorMsg.classList.add('hidden');
+    }
+
+    // Switch Tabs
     function switchTab(tabId) {
-      currentTab = tabId;
-      const tabs = ['dashboard', 'stores', 'approvals', 'analytics', 'settings'];
-      
-      tabs.forEach(t => {
-        const page = document.getElementById('tab-' + t);
-        const btn = document.getElementById('nav-btn-' + t);
-        if (page) {
-          if (t === tabId) {
-            page.classList.remove('hidden');
-          } else {
-            page.classList.add('hidden');
-          }
-        }
+      if (!isAuthenticated) return;
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+      const target = document.getElementById(`tab-${tabId}`);
+      if (target) target.classList.remove('hidden');
+
+      ['dashboard', 'stores', 'subscriptions', 'manual'].forEach(t => {
+        const btn = document.getElementById(`nav-${t}`);
         if (btn) {
           if (t === tabId) {
-            btn.className = 'w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition bg-brand-600 text-white shadow-md shadow-brand-600/20';
+            btn.className = "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition bg-brand-600 text-white shadow-md";
           } else {
-            btn.className = 'w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition';
+            btn.className = "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition text-slate-400 hover:bg-slate-800 hover:text-white";
           }
         }
       });
+    }
 
-      // Close mobile sidebar if open
-      const sb = document.getElementById('sidebar-menu');
-      if (sb && !sb.classList.contains('hidden') && window.innerWidth < 1024) {
-        sb.classList.add('hidden');
+    // Load Data from Supabase (Strictly gated behind isAuthenticated)
+    async function loadAllData() {
+      if (!isAuthenticated) {
+        console.warn("Blocked data loading: Super Admin not authenticated.");
+        return;
       }
 
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+      const refreshIcon = document.getElementById('refresh-icon');
+      if (refreshIcon) refreshIcon.classList.add('fa-spin');
 
-    function toggleMobileSidebar() {
-      const sb = document.getElementById('sidebar-menu');
-      sb.classList.toggle('hidden');
-    }
+      try {
+        if (!supabase) return;
 
-    function toggleDarkMode() {
-      const isDark = document.documentElement.classList.toggle('dark');
-      const icon = document.getElementById('theme-icon');
-      if (isDark) {
-        icon.className = 'fa-solid fa-sun text-lg';
-      } else {
-        icon.className = 'fa-solid fa-moon text-lg';
-      }
-    }
+        // Fetch Stores
+        const { data: storesData, error: storesErr } = await supabase
+          .from('stores')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-    function updateLiveClock() {
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString('ar-SD', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const el = document.getElementById('live-time-display');
-      if (el) el.textContent = timeStr + ' (توقيت السودان)';
-    }
-
-    /* =========================================================================
-       4. DASHBOARD & STATISTICS COMPUTATION
-       ========================================================================= */
-    function refreshAllData() {
-      checkAndSyncPOSMerchant();
-      computeDashboardStats();
-      renderDashboardRecentLists();
-      renderStoresTable();
-      renderRequestsTable();
-      renderAnalyticsTab();
-    }
-
-    function computeDashboardStats() {
-      const stores = AdminData.stores;
-      const requests = AdminData.subscriptionRequests;
-      const now = Date.now();
-
-      // Total Stores
-      const totalStores = stores.length;
-      document.getElementById('stat-total-stores').textContent = totalStores;
-      document.getElementById('nav-stores-count').textContent = totalStores;
-
-      // 72h Trial Stores (status = 'trial' and expires > now)
-      const trialStores = stores.filter(s => s.status === 'trial' && s.subscriptionExpiresAt > now);
-      document.getElementById('stat-trial-stores').textContent = trialStores.length;
-      document.getElementById('shortcut-trial-count').textContent = trialStores.length;
-
-      // Expiring soon (within next 24h)
-      const expiringSoon = trialStores.filter(s => (s.subscriptionExpiresAt - now) <= 24 * 3600 * 1000);
-      document.getElementById('stat-expiring-soon').textContent = expiringSoon.length + ' متجر';
-
-      // Active Paid Subscriptions (Monthly & Annual)
-      const monthlySubs = stores.filter(s => s.status === 'monthly' && s.subscriptionExpiresAt > now);
-      const annualSubs = stores.filter(s => s.status === 'annual' && s.subscriptionExpiresAt > now);
-      const activeTotal = monthlySubs.length + annualSubs.length;
-
-      document.getElementById('stat-active-subs').textContent = activeTotal;
-      document.getElementById('stat-monthly-subs').textContent = monthlySubs.length;
-      document.getElementById('stat-annual-subs').textContent = annualSubs.length;
-
-      // Pending & Expired & Blocked
-      const pendingRequests = requests.filter(r => r.status === 'pending');
-      const pendingCount = pendingRequests.length;
-      const expiredCount = stores.filter(s => s.status === 'expired' || (s.subscriptionExpiresAt < now && s.status !== 'blocked')).length;
-      const blockedCount = stores.filter(s => s.status === 'blocked' || s.isBlocked).length;
-
-      document.getElementById('stat-pending-subs').textContent = pendingCount;
-      document.getElementById('stat-expired-subs').textContent = expiredCount;
-      document.getElementById('banner-pending-count').textContent = pendingCount;
-      document.getElementById('header-pending-badge').textContent = pendingCount;
-      document.getElementById('nav-pending-badge').textContent = pendingCount;
-      document.getElementById('shortcut-pending-count').textContent = pendingCount;
-      document.getElementById('shortcut-expired-count').textContent = expiredCount;
-      document.getElementById('shortcut-blocked-count').textContent = blockedCount;
-
-      // Revenue Calculation from Approved Requests
-      const approvedRequests = requests.filter(r => r.status === 'approved');
-      let monthlyRev = 0;
-      let annualRev = 0;
-
-      approvedRequests.forEach(r => {
-        if (r.plan === 'annual') {
-          annualRev += (r.amount || OFFICIAL_BANK.annualPrice);
-        } else {
-          monthlyRev += (r.amount || OFFICIAL_BANK.monthlyPrice);
+        if (!storesErr && storesData) {
+          allStores = storesData;
         }
-      });
 
-      const totalRevenue = monthlyRev + annualRev;
-      document.getElementById('stat-total-revenue').innerHTML = `${totalRevenue.toLocaleString()} <span class="text-sm font-sans font-bold text-emerald-200">جنيه سوداني</span>`;
-      document.getElementById('stat-rev-monthly').textContent = monthlyRev.toLocaleString() + ' ج.س';
-      document.getElementById('stat-rev-annual').textContent = annualRev.toLocaleString() + ' ج.س';
+        // Fetch Subscriptions
+        const { data: subsData, error: subsErr } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      // Update Visualizer Progress Bars
-      if (totalStores > 0) {
-        const activePct = Math.round((activeTotal / totalStores) * 100);
-        const trialPct = Math.round((trialStores.length / totalStores) * 100);
-        const pendingPct = Math.round((pendingCount / totalStores) * 100);
-        const expBlockedPct = Math.round(((expiredCount + blockedCount) / totalStores) * 100);
+        if (!subsErr && subsData) {
+          allSubscriptions = subsData;
+        }
 
-        document.getElementById('bar-label-active').textContent = activePct + '%';
-        document.getElementById('bar-active').style.width = activePct + '%';
-
-        document.getElementById('bar-label-trial').textContent = trialPct + '%';
-        document.getElementById('bar-trial').style.width = trialPct + '%';
-
-        document.getElementById('bar-label-pending').textContent = pendingPct + '%';
-        document.getElementById('bar-pending').style.width = pendingPct + '%';
-
-        document.getElementById('bar-label-expired').textContent = expBlockedPct + '%';
-        document.getElementById('bar-expired').style.width = expBlockedPct + '%';
+        renderDashboard();
+        renderStoresTable();
+        renderSubscriptionsTable();
+      } catch (err) {
+        console.error("Fetch data error:", err);
+      } finally {
+        if (refreshIcon) refreshIcon.classList.remove('fa-spin');
       }
     }
 
-    function renderDashboardRecentLists() {
-      // 1. Recent Requests List
-      const reqListEl = document.getElementById('dashboard-recent-requests-list');
-      const recentReqs = AdminData.subscriptionRequests.slice(0, 4);
+    // Render Dashboard
+    function renderDashboard() {
+      if (!isAuthenticated) return;
+      const totalStores = allStores.length;
+      const pendingSubs = allSubscriptions.filter(s => s.status === 'pending');
+      const activeSubs = allSubscriptions.filter(s => s.status === 'active');
+      const totalRevenue = activeSubs.reduce((acc, s) => acc + (Number(s.amount) || 0), 0);
 
-      if (recentReqs.length === 0) {
-        reqListEl.innerHTML = `<div class="text-xs text-slate-400 text-center py-4">لا توجد طلبات واردة حالياً</div>`;
-      } else {
-        reqListEl.innerHTML = recentReqs.map(r => {
-          const isPending = r.status === 'pending';
-          const planBadge = r.plan === 'annual' 
-            ? '<span class="bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-bold px-2 py-0.5 rounded text-[10px]">سنوي 500k</span>'
-            : '<span class="bg-brand-100 text-brand-800 dark:bg-brand-950/60 dark:text-brand-300 font-bold px-2 py-0.5 rounded text-[10px]">شهري 50k</span>';
-          
-          return `
-            <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs">
-              <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl ${isPending ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'} flex items-center justify-center text-sm font-black">
-                  <i class="fa-solid ${isPending ? 'fa-clock' : 'fa-check'}"></i>
-                </div>
-                <div>
-                  <div class="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    <span>${r.storeName}</span>
-                    ${planBadge}
-                  </div>
-                  <div class="text-[11px] text-slate-400 font-mono flex items-center gap-2 mt-0.5">
-                    <span>عملية: #${r.last4Digits || '---'}</span>
-                    <span>•</span>
-                    <span>${r.paymentMethod || 'بنكك'}</span>
-                  </div>
-                </div>
-              </div>
+      document.getElementById('kpi-total-stores').innerText = totalStores;
+      document.getElementById('kpi-pending-subs').innerText = pendingSubs.length;
+      document.getElementById('kpi-active-subs').innerText = activeSubs.length;
+      document.getElementById('kpi-revenue').innerText = `${totalRevenue.toLocaleString()} جنيه`;
 
-              <div class="flex items-center gap-2">
-                ${isPending ? `
-                  <button onclick="approveSubscriptionRequest('${r.id}')" class="bg-brand-600 hover:bg-brand-700 text-white font-bold px-3 py-1.5 rounded-xl text-[11px] transition">
-                    تفعيل
-                  </button>
-                  <button onclick="openReceiptModal('${r.id}')" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 font-bold px-2.5 py-1.5 rounded-xl text-[11px] transition" title="معاينة الإشعار">
-                    <i class="fa-solid fa-eye"></i>
-                  </button>
-                ` : `
-                  <span class="text-emerald-600 font-bold text-[11px]">معتمد ✓</span>
-                `}
-              </div>
-            </div>
-          `;
-        }).join('');
+      // Badges
+      const pBadge = document.getElementById('pending-badge');
+      const navPending = document.getElementById('nav-pending-count');
+      const navStores = document.getElementById('nav-stores-count');
+
+      if (pBadge) pBadge.innerText = pendingSubs.length;
+      if (navPending) navPending.innerText = pendingSubs.length;
+      if (navStores) navStores.innerText = totalStores;
+
+      // Recent pending preview
+      const container = document.getElementById('dashboard-recent-subs');
+      if (!container) return;
+
+      if (pendingSubs.length === 0) {
+        container.innerHTML = `
+          <div class="py-8 text-center text-slate-500 text-xs">
+            <i class="fa-solid fa-check-circle text-2xl text-emerald-500/50 mb-2"></i>
+            <p>لا توجد طلبات تحويل معلقة حالياً. كافة العمليات معتمدة!</p>
+          </div>
+        `;
+        return;
       }
 
-      // 2. Recent Stores List
-      const storeListEl = document.getElementById('dashboard-recent-stores-list');
-      const recentStores = AdminData.stores.slice(0, 4);
-
-      if (recentStores.length === 0) {
-        storeListEl.innerHTML = `<div class="text-xs text-slate-400 text-center py-4">لا توجد متاجر مسجلة</div>`;
-      } else {
-        storeListEl.innerHTML = recentStores.map(s => {
-          const statusBadge = getStoreStatusBadge(s);
-          return `
-            <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs">
-              <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm font-bold">
-                  <i class="fa-solid fa-store"></i>
-                </div>
-                <div>
-                  <div class="font-bold text-slate-800 dark:text-white">${s.name}</div>
-                  <div class="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
-                    <span>${s.ownerName}</span>
-                    <span>•</span>
-                    <span class="font-mono">${s.phone}</span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                ${statusBadge}
-              </div>
+      container.innerHTML = pendingSubs.slice(0, 5).map(sub => `
+        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-black">
+              <i class="fa-solid fa-receipt"></i>
             </div>
-          `;
-        }).join('');
-      }
+            <div>
+              <div class="font-bold text-white">${sub.store_name || 'متجر غير معنون'}</div>
+              <div class="text-[11px] text-slate-400 font-mono">هاتف: ${sub.phone} | تحويل: <b class="text-amber-400">آخر 4 أرقام (${sub.last_4_digits || '----'})</b></div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="font-mono font-bold text-emerald-400">${(Number(sub.amount) || 0).toLocaleString()} جنيه</span>
+            <button onclick="approveSubscription('${sub.id}', '${sub.phone}', '${sub.plan}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition">
+              تفعيل المتجر
+            </button>
+          </div>
+        </div>
+      `).join('');
     }
 
-    /* =========================================================================
-       5. STORES & MERCHANTS TABLE
-       ========================================================================= */
+    // Render Stores Table
     function renderStoresTable() {
+      if (!isAuthenticated) return;
       const tbody = document.getElementById('stores-table-body');
-      const emptyState = document.getElementById('stores-empty-state');
-      const query = (document.getElementById('store-search-input').value || '').trim().toLowerCase();
-      const statusFilter = document.getElementById('store-status-filter').value;
-      const typeFilter = document.getElementById('store-type-filter').value;
+      if (!tbody) return;
 
-      let list = AdminData.stores.filter(s => {
-        // Search matching
-        const matchQuery = !query || 
-          s.name.toLowerCase().includes(query) ||
-          s.ownerName.toLowerCase().includes(query) ||
-          s.phone.includes(query) ||
-          (s.email && s.email.toLowerCase().includes(query)) ||
-          (s.address && s.address.toLowerCase().includes(query));
-
-        // Status matching
-        let matchStatus = true;
-        if (statusFilter !== 'ALL') {
-          if (statusFilter === 'blocked') matchStatus = s.status === 'blocked' || s.isBlocked;
-          else if (statusFilter === 'trial') matchStatus = s.status === 'trial' && s.subscriptionExpiresAt > Date.now();
-          else if (statusFilter === 'monthly') matchStatus = s.status === 'monthly';
-          else if (statusFilter === 'annual') matchStatus = s.status === 'annual';
-          else if (statusFilter === 'pending') matchStatus = s.status === 'pending';
-          else if (statusFilter === 'expired') matchStatus = s.status === 'expired' || (s.subscriptionExpiresAt < Date.now() && s.status !== 'blocked');
-        }
-
-        // Business type matching
-        const matchType = typeFilter === 'ALL' || s.businessType === typeFilter;
-
-        return matchQuery && matchStatus && matchType;
-      });
-
-      if (list.length === 0) {
-        tbody.innerHTML = '';
-        emptyState.classList.remove('hidden');
+      if (allStores.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-500 font-sans">لا توجد متاجر مسجلة في جدول stores حتى الآن</td></tr>`;
         return;
       }
 
-      emptyState.classList.add('hidden');
-      tbody.innerHTML = list.map(store => {
-        const statusBadge = getStoreStatusBadge(store);
-        const remainingTimeText = getRemainingTimeText(store);
-        const regDate = new Date(store.createdAt || store.trialStartedAt || Date.now()).toLocaleDateString('ar-SD');
+      tbody.innerHTML = allStores.map(store => {
+        let trialLabel = '';
+        if (store.trial_expiry) {
+          const diff = new Date(store.trial_expiry) - new Date();
+          if (diff > 0) {
+            const h = Math.floor(diff / (3600 * 1000));
+            trialLabel = `<span class="text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded text-[10px]">متبقي ${h} ساعة</span>`;
+          } else {
+            trialLabel = `<span class="text-rose-400 bg-rose-950/60 border border-rose-800/60 px-2 py-0.5 rounded text-[10px]">منتهية</span>`;
+          }
+        } else {
+          trialLabel = `<span class="text-slate-500">-</span>`;
+        }
+
+        const statusBadge = store.status === 'active' 
+          ? `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold">نشط ومدفوع</span>`
+          : `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold">فترة تجريبية</span>`;
 
         return `
-          <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
-            <!-- Store and Owner -->
-            <td class="py-3.5 px-4">
-              <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-xs shrink-0">
-                  <i class="fa-solid fa-shop"></i>
-                </div>
-                <div>
-                  <div class="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <span>${store.name}</span>
-                    ${store.isBlocked ? '<span class="text-[9px] bg-red-100 text-red-600 px-1 rounded font-bold">محظور</span>' : ''}
-                  </div>
-                  <div class="text-[11px] text-slate-400">المالك: ${store.ownerName} • ${store.address || 'السودان'}</div>
-                </div>
-              </div>
-            </td>
-
-            <!-- Business Type -->
-            <td class="py-3.5 px-4">
-              <span class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg text-[11px] font-bold inline-flex items-center gap-1">
-                <i class="fa-solid fa-tag text-[9px] text-slate-400"></i>
-                <span>${store.businessType}</span>
-              </span>
-            </td>
-
-            <!-- Phone & Contact Actions -->
-            <td class="py-3.5 px-4 font-mono text-[11px]">
-              <div class="text-slate-700 dark:text-slate-300 font-bold">${store.phone}</div>
-              <div class="flex items-center gap-2 mt-1">
-                <a href="https://wa.me/249${store.phone.replace(/^0+/, '')}?text=${encodeURIComponent('السلام عليكم ' + store.ownerName + ' - تواصل من إدارة تطبيق كاشدار بخصوص متجرك ' + store.name)}" target="_blank" class="text-emerald-600 hover:text-emerald-700 flex items-center gap-1 text-[10px] font-sans font-bold" title="محادثة واتساب مباشرة">
-                  <i class="fa-brands fa-whatsapp text-sm"></i>
-                  <span>واتساب</span>
-                </a>
-                <span class="text-slate-300 dark:text-slate-700">|</span>
-                <a href="tel:${store.phone}" class="text-sky-600 hover:text-sky-700 text-[10px] font-sans font-bold flex items-center gap-1">
-                  <i class="fa-solid fa-phone text-[9px]"></i>
-                  <span>اتصال</span>
-                </a>
-              </div>
-            </td>
-
-            <!-- Registration Date -->
-            <td class="py-3.5 px-4 text-slate-500 text-[11px] font-mono">
-              ${regDate}
-            </td>
-
-            <!-- Status and Countdown -->
-            <td class="py-3.5 px-4">
-              <div class="space-y-1">
-                <div>${statusBadge}</div>
-                <div class="text-[10px] text-slate-400 font-mono">${remainingTimeText}</div>
-              </div>
-            </td>
-
-            <!-- Direct Actions -->
-            <td class="py-3.5 px-4 text-center">
-              <div class="flex items-center justify-center gap-1.5">
-                <!-- Direct Subscription Activation Button -->
-                <button onclick="quickActivateStore('${store.id}')" class="bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/60 dark:hover:bg-brand-900/60 text-brand-700 dark:text-brand-300 font-bold px-2 py-1 rounded-lg text-[11px] transition flex items-center gap-1" title="تفعيل اشتراك فوري">
-                  <i class="fa-solid fa-circle-check"></i>
-                  <span>تفعيل</span>
-                </button>
-
-                <!-- Extend Trial Button -->
-                <button onclick="openExtendModal('${store.id}')" class="bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/60 dark:hover:bg-sky-900/60 text-sky-700 dark:text-sky-300 font-bold px-2 py-1 rounded-lg text-[11px] transition flex items-center gap-1" title="تمديد الفترة التجريبية">
-                  <i class="fa-solid fa-clock-rotate-left"></i>
-                  <span>تمديد</span>
-                </button>
-
-                <!-- Block / Unblock Button -->
-                <button onclick="toggleBlockStore('${store.id}')" class="${store.isBlocked ? 'bg-amber-100 text-amber-800' : 'bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400'} font-bold px-2 py-1 rounded-lg text-[11px] transition" title="${store.isBlocked ? 'إلغاء الحظر' : 'حظر / إيقاف الحساب'}">
-                  <i class="fa-solid ${store.isBlocked ? 'fa-unlock' : 'fa-ban'}"></i>
-                </button>
-
-                <!-- Edit Button -->
-                <button onclick="openEditStoreModal('${store.id}')" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 p-1.5 rounded-lg text-xs transition" title="تعديل بيانات المتجر">
-                  <i class="fa-solid fa-pen-to-square"></i>
-                </button>
-              </div>
+          <tr class="hover:bg-slate-900/60 transition">
+            <td class="p-3.5 font-sans font-bold text-white">${store.store_name || '-'}</td>
+            <td class="p-3.5 text-slate-300 font-mono">${store.phone || '-'}</td>
+            <td class="p-3.5 font-sans text-slate-400">${store.business_type || 'عام'}</td>
+            <td class="p-3.5 font-sans text-slate-400">${store.address || '-'}</td>
+            <td class="p-3.5 text-slate-500 text-[11px]">${store.created_at ? new Date(store.created_at).toLocaleDateString('ar-EG') : '-'}</td>
+            <td class="p-3.5">${trialLabel}</td>
+            <td class="p-3.5">${statusBadge}</td>
+            <td class="p-3.5 text-center">
+              <button onclick="quickActivateStore('${store.phone}')" class="bg-slate-800 hover:bg-brand-600 hover:text-white text-slate-300 px-2.5 py-1 rounded-lg text-[11px] transition font-sans font-bold" title="تفعيل اشتراك هذا المتجر">
+                <i class="fa-solid fa-bolt ml-1 text-amber-400"></i> تفعيل
+              </button>
             </td>
           </tr>
         `;
       }).join('');
     }
 
-    function filterStoresBy(statusKey) {
-      switchTab('stores');
-      const select = document.getElementById('store-status-filter');
-      select.value = statusKey;
-      renderStoresTable();
-    }
-
-    /* Helper Status Badges */
-    function getStoreStatusBadge(store) {
-      const now = Date.now();
-      if (store.isBlocked || store.status === 'blocked') {
-        return `<span class="bg-slate-800 text-white dark:bg-slate-700 px-2.5 py-0.5 rounded-full text-[10px] font-black inline-flex items-center gap-1"><i class="fa-solid fa-ban text-[9px] text-red-400"></i> محظور وموقوف</span>`;
-      }
-      if (store.status === 'annual') {
-        return `<span class="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 px-2.5 py-0.5 rounded-full text-[10px] font-black inline-flex items-center gap-1"><i class="fa-solid fa-crown text-[9px]"></i> نشط - باقة سنوية</span>`;
-      }
-      if (store.status === 'monthly') {
-        return `<span class="bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/20 px-2.5 py-0.5 rounded-full text-[10px] font-black inline-flex items-center gap-1"><i class="fa-solid fa-check-circle text-[9px]"></i> نشط - باقة شهرية</span>`;
-      }
-      if (store.status === 'pending') {
-        return `<span class="bg-amber-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-black inline-flex items-center gap-1 pulse-glow"><i class="fa-solid fa-clock text-[9px]"></i> بانتظار الاعتماد</span>`;
-      }
-      if (store.status === 'trial') {
-        if (store.subscriptionExpiresAt > now) {
-          return `<span class="bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 px-2.5 py-0.5 rounded-full text-[10px] font-black inline-flex items-center gap-1"><i class="fa-solid fa-stopwatch text-[9px]"></i> تجريبي (72h)</span>`;
-        } else {
-          return `<span class="bg-red-500/10 text-red-600 border border-red-500/20 px-2.5 py-0.5 rounded-full text-[10px] font-black inline-flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation text-[9px]"></i> انتهاء التجربة</span>`;
-        }
-      }
-      return `<span class="bg-red-500/10 text-red-600 border border-red-500/20 px-2.5 py-0.5 rounded-full text-[10px] font-black">منتهي الصلاحية</span>`;
-    }
-
-    function getRemainingTimeText(store) {
-      const now = Date.now();
-      const diff = store.subscriptionExpiresAt - now;
-      if (diff <= 0) {
-        return 'منتهي منذ ' + Math.abs(Math.floor(diff / (24 * 3600 * 1000))) + ' يوم';
-      }
-      const days = Math.floor(diff / (24 * 3600 * 1000));
-      const hours = Math.floor((diff % (24 * 3600 * 1000)) / (3600 * 1000));
-      if (days > 0) {
-        return `متبقي: ${days} يوم و ${hours} ساعة`;
-      }
-      return `متبقي: ${hours} ساعة فقط`;
-    }
-
-    /* =========================================================================
-       6. SUBSCRIPTION & APPROVAL REQUESTS (59189 ACCOUNT)
-       ========================================================================= */
-    function filterRequestsBy(filterKey) {
-      currentRequestsFilter = filterKey;
-      const pills = ['all', 'pending', 'approved', 'rejected'];
-      pills.forEach(p => {
-        const el = document.getElementById('req-pill-' + p);
-        if (p === filterKey.toLowerCase()) {
-          el.className = 'bg-brand-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition';
-        } else {
-          el.className = 'bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl transition';
-        }
+    function filterStoresTable() {
+      const q = document.getElementById('store-search-input').value.toLowerCase().trim();
+      const rows = document.querySelectorAll('#stores-table-body tr');
+      rows.forEach(r => {
+        const text = r.innerText.toLowerCase();
+        r.style.display = text.includes(q) ? '' : 'none';
       });
-      renderRequestsTable();
     }
 
-    function renderRequestsTable() {
-      const tbody = document.getElementById('requests-table-body');
-      const emptyState = document.getElementById('requests-empty-state');
-      const requests = AdminData.subscriptionRequests;
+    // Render Subscriptions Table
+    function renderSubscriptionsTable() {
+      if (!isAuthenticated) return;
+      const tbody = document.getElementById('subscriptions-table-body');
+      if (!tbody) return;
 
-      // Update counts
-      const countAll = requests.length;
-      const countPending = requests.filter(r => r.status === 'pending').length;
-      const countApproved = requests.filter(r => r.status === 'approved').length;
-      const countRejected = requests.filter(r => r.status === 'rejected').length;
-
-      document.getElementById('req-count-all').textContent = countAll;
-      document.getElementById('req-count-pending').textContent = countPending;
-      document.getElementById('req-count-approved').textContent = countApproved;
-      document.getElementById('req-count-rejected').textContent = countRejected;
-
-      const pendingTotalAmt = requests
-        .filter(r => r.status === 'pending')
-        .reduce((sum, r) => sum + (r.amount || 0), 0);
-      document.getElementById('req-pending-total-amount').textContent = pendingTotalAmt.toLocaleString() + ' ج.س';
-
-      let filtered = requests.filter(r => {
-        if (currentRequestsFilter === 'ALL') return true;
-        return r.status === currentRequestsFilter;
-      });
-
-      if (filtered.length === 0) {
-        tbody.innerHTML = '';
-        emptyState.classList.remove('hidden');
+      if (allSubscriptions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-slate-500 font-sans">لا توجد طلبات اشتراكات مسجلة</td></tr>`;
         return;
       }
 
-      emptyState.classList.add('hidden');
-      tbody.innerHTML = filtered.map(req => {
-        const isPending = req.status === 'pending';
-        const dateStr = new Date(req.submittedAt || Date.now()).toLocaleString('ar-SD');
-        const planBadge = req.plan === 'annual'
-          ? `<span class="bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-black px-2.5 py-1 rounded-xl text-xs inline-flex items-center gap-1.5">
-               <i class="fa-solid fa-crown text-amber-500"></i>
-               <span>سنوي (500,000 ج.س)</span>
-             </span>`
-          : `<span class="bg-brand-100 text-brand-800 dark:bg-brand-950/60 dark:text-brand-300 font-black px-2.5 py-1 rounded-xl text-xs inline-flex items-center gap-1.5">
-               <i class="fa-solid fa-calendar-check text-brand-600"></i>
-               <span>شهري (50,000 ج.س)</span>
-             </span>`;
-
-        let statusText = '';
-        if (req.status === 'pending') {
-          statusText = `<span class="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2.5 py-1 rounded-xl text-[11px] font-black inline-flex items-center gap-1.5 pulse-glow">
-                          <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                          <span>بانتظار التحقق والاعتماد</span>
-                        </span>`;
-        } else if (req.status === 'approved') {
-          statusText = `<span class="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-xl text-[11px] font-black inline-flex items-center gap-1.5">
-                          <i class="fa-solid fa-circle-check text-emerald-500"></i>
-                          <span>معتمد وتم التفعيل ✓</span>
-                        </span>`;
-        } else {
-          statusText = `<span class="bg-red-500/10 text-red-600 border border-red-500/30 px-2.5 py-1 rounded-xl text-[11px] font-black inline-flex items-center gap-1.5">
-                          <i class="fa-solid fa-circle-xmark"></i>
-                          <span>مرفوض</span>
-                        </span>`;
+      tbody.innerHTML = allSubscriptions.map(sub => {
+        const isPending = sub.status === 'pending';
+        const planText = sub.plan === 'annual' ? 'سنوي (500,000)' : 'شهري (50,000)';
+        
+        let receiptBtn = '<span class="text-slate-600 font-sans">بدون صورة</span>';
+        if (sub.receipt_image) {
+          receiptBtn = `
+            <button onclick="previewImage('${sub.receipt_image}')" class="text-brand-400 hover:text-brand-300 font-sans font-bold flex items-center gap-1">
+              <i class="fa-solid fa-image"></i> عرض الإشعار
+            </button>
+          `;
         }
 
+        const statusBadge = isPending
+          ? `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold animate-pulse">قيد المراجعة</span>`
+          : `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold">معتمد ومفعل</span>`;
+
         return `
-          <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
-            <!-- Request ID & Date -->
-            <td class="py-3.5 px-4 font-mono text-xs">
-              <div class="font-bold text-slate-800 dark:text-white">${req.id}</div>
-              <div class="text-[11px] text-slate-400 font-sans mt-0.5">${dateStr}</div>
-            </td>
-
-            <!-- Store & Merchant -->
-            <td class="py-3.5 px-4">
-              <div class="font-bold text-slate-900 dark:text-white text-xs">${req.storeName}</div>
-              <div class="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
-                <span>${req.ownerName}</span>
-                <span>•</span>
-                <span class="font-mono">${req.phone}</span>
-              </div>
-            </td>
-
-            <!-- Plan and Amount -->
-            <td class="py-3.5 px-4">
-              <div class="space-y-1">
-                ${planBadge}
-                <div class="text-[10px] text-slate-400 font-sans">محول لحساب: <b>59189</b></div>
-              </div>
-            </td>
-
-            <!-- Proof of Payment (Last 4 or Receipt Image) -->
-            <td class="py-3.5 px-4">
-              <div class="flex items-center gap-2.5">
-                ${req.receiptImage ? `
-                  <div onclick="openReceiptModal('${req.id}')" class="w-12 h-12 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 cursor-pointer hover:opacity-80 transition relative shrink-0 group" title="انقر لتكبير صورة الإشعار">
-                    <img src="${req.receiptImage}" alt="إشعار" class="w-full h-full object-cover">
-                    <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-white text-xs">
-                      <i class="fa-solid fa-magnifying-glass-plus"></i>
-                    </div>
-                  </div>
-                ` : `
-                  <div class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center text-lg shrink-0">
-                    <i class="fa-solid fa-file-invoice"></i>
-                  </div>
-                `}
-
-                <div>
-                  <div class="flex items-center gap-1.5 font-mono text-xs">
-                    <span class="text-slate-400">آخر 4 أرقام:</span>
-                    <span class="font-black bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-brand-600 dark:text-brand-400 border border-slate-200 dark:border-slate-700">#${req.last4Digits || '----'}</span>
-                  </div>
-                  <div class="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-                    <i class="fa-solid fa-building-columns text-[10px] text-amber-500"></i>
-                    <span>${req.paymentMethod || 'بنكك'}</span>
-                  </div>
-                </div>
-              </div>
-            </td>
-
-            <!-- Status -->
-            <td class="py-3.5 px-4">
-              ${statusText}
-            </td>
-
-            <!-- DIRECT ACTION BUTTONS (The 3 Required Main Actions + Reject) -->
-            <td class="py-3.5 px-4 text-center">
-              <div class="flex items-center justify-center gap-1.5 flex-wrap">
-                
-                <!-- 1. تفعيل الاشتراك (Activate Subscription) -->
-                <button onclick="approveSubscriptionRequest('${req.id}')" class="bg-brand-600 hover:bg-brand-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-brand-600/20 transition ${!isPending ? 'opacity-50' : ''}" title="تفعيل الاشتراك وتحديث المتجر تلقائياً">
-                  <i class="fa-solid fa-circle-check"></i>
-                  <span>تفعيل الاشتراك</span>
+          <tr class="hover:bg-slate-900/60 transition">
+            <td class="p-3.5 text-slate-400 text-[11px]">${new Date(sub.created_at).toLocaleString('ar-EG')}</td>
+            <td class="p-3.5 font-sans font-bold text-white">${sub.store_name || '-'}</td>
+            <td class="p-3.5 text-slate-300 font-mono">${sub.phone || '-'}</td>
+            <td class="p-3.5 font-sans text-slate-300">${planText}</td>
+            <td class="p-3.5 font-mono text-emerald-400 font-bold">${(Number(sub.amount) || 0).toLocaleString()}</td>
+            <td class="p-3.5 font-mono font-black text-amber-400 text-sm tracking-widest">${sub.last_4_digits || '----'}</td>
+            <td class="p-3.5">${receiptBtn}</td>
+            <td class="p-3.5">${statusBadge}</td>
+            <td class="p-3.5 text-center">
+              ${isPending ? `
+                <button onclick="approveSubscription('${sub.id}', '${sub.phone}', '${sub.plan}')" class="bg-brand-600 hover:bg-brand-500 text-white font-sans font-bold px-3 py-1.5 rounded-lg text-xs transition shadow flex items-center gap-1.5 mx-auto">
+                  <i class="fa-solid fa-check"></i> اعتماد وتفعيل
                 </button>
-
-                <!-- 2. تمديد التجربة (Extend Trial) -->
-                <button onclick="openExtendModal('${req.storeId}')" class="bg-sky-500 hover:bg-sky-600 text-white font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="تمديد فترة التجربة للمتجر">
-                  <i class="fa-solid fa-clock-rotate-left"></i>
-                  <span>تمديد التجربة</span>
-                </button>
-
-                <!-- 3. حظر / إيقاف الحساب (Block Store) -->
-                <button onclick="toggleBlockStore('${req.storeId}')" class="bg-slate-800 hover:bg-red-700 text-white font-bold px-2 py-1.5 rounded-xl text-xs transition" title="حظر أو إيقاف المتجر">
-                  <i class="fa-solid fa-ban"></i>
-                  <span class="hidden sm:inline">حظر</span>
-                </button>
-
-                <!-- 4. رفض الطلب (Reject) -->
-                ${isPending ? `
-                  <button onclick="rejectSubscriptionRequest('${req.id}')" class="bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 dark:bg-slate-800 dark:hover:bg-red-950/40 p-1.5 rounded-xl text-xs transition" title="رفض الطلب">
-                    <i class="fa-solid fa-xmark"></i>
-                  </button>
-                ` : ''}
-
-              </div>
+              ` : `
+                <span class="text-slate-500 font-sans text-[11px]"><i class="fa-solid fa-check-double text-emerald-500"></i> مفعّل</span>
+              `}
             </td>
           </tr>
         `;
       }).join('');
     }
 
-    /* =========================================================================
-       7. DIRECT ACTIONS BUSINESS LOGIC
-       ========================================================================= */
+    // Direct Approval of Subscription
+    async function approveSubscription(subscriptionId, phone, plan) {
+      if (!isAuthenticated) return;
+      if (!confirm(`هل أنت متأكد من اعتماد التحويل وتفعيل الترخيص لرقم (${phone})؟`)) return;
 
-    // ACTION 1: تفعيل الاشتراك (Activate Subscription)
-    function approveSubscriptionRequest(reqId) {
-      const req = AdminData.subscriptionRequests.find(r => r.id === reqId);
-      if (!req) return;
+      try {
+        // 1. Update subscription status
+        await supabase
+          .from('subscriptions')
+          .update({ status: 'active', approved_at: new Date().toISOString() })
+          .eq('id', subscriptionId);
 
-      const store = AdminData.stores.find(s => s.id === req.storeId);
-      const isAnnual = req.plan === 'annual';
-      const durationMs = isAnnual ? (365 * 24 * 3600 * 1000) : (30 * 24 * 3600 * 1000);
+        // 2. Update store status to active
+        const days = plan === 'annual' ? 365 : 30;
+        const expiryDate = new Date(Date.now() + days * 24 * 3600 * 1000).toISOString();
 
-      // Update Request status
-      req.status = 'approved';
-      req.approvedAt = Date.now();
+        await supabase
+          .from('stores')
+          .update({ status: 'active', trial_expiry: expiryDate })
+          .eq('phone', phone);
 
-      // Update Store status & expiry
-      if (store) {
-        store.status = isAnnual ? 'annual' : 'monthly';
-        store.plan = req.plan;
-        store.isBlocked = false;
-        // If still active, add to existing expiry, otherwise from now
-        const baseTime = store.subscriptionExpiresAt > Date.now() ? store.subscriptionExpiresAt : Date.now();
-        store.subscriptionExpiresAt = baseTime + durationMs;
+        alert("تم اعتماد التحويل وتفعيل المتجر بنجاح في Supabase!");
+        loadAllData();
+      } catch (err) {
+        console.error("Approval error:", err);
+        alert("حدث خطأ أثناء اعتماد الطلب في Supabase.");
       }
-
-      // If it is the local POS merchant, sync back to CASHDAR_MERCHANT_POS_V1
-      if (req.storeId === 'pos_local_merchant') {
-        try {
-          const raw = localStorage.getItem(POS_LOCAL_KEY);
-          if (raw) {
-            const pos = JSON.parse(raw);
-            pos.subscription = pos.subscription || {};
-            pos.subscription.isPaid = true;
-            pos.subscription.pendingVerification = false;
-            pos.subscription.plan = req.plan;
-            pos.subscription.expiryDate = (store ? store.subscriptionExpiresAt : (Date.now() + durationMs));
-            localStorage.setItem(POS_LOCAL_KEY, JSON.stringify(pos));
-          }
-        } catch(e) {}
-      }
-
-      saveAdminData();
-      refreshAllData();
-      closeModal('receipt-modal');
-
-      showToast(`تم تفعيل اشتراك ${req.storeName} (${isAnnual ? 'الباقة السنوية' : 'الباقة الشهرية'}) بنجاح!`, 'success');
     }
 
-    // ACTION 2: تمديد التجربة (Extend Trial)
-    function openExtendModal(storeId) {
-      const store = AdminData.stores.find(s => s.id === storeId);
-      if (!store) return;
-
-      document.getElementById('extend-store-id').value = storeId;
-      document.getElementById('extend-store-name').textContent = store.name;
-      openModal('extend-modal');
+    // Quick Activate from Stores Table
+    async function quickActivateStore(phone) {
+      if (!isAuthenticated) return;
+      document.getElementById('manual-phone').value = phone;
+      switchTab('manual');
     }
 
-    function applyTrialExtension(hours) {
-      const storeId = document.getElementById('extend-store-id').value;
-      const store = AdminData.stores.find(s => s.id === storeId);
-      if (!store) return;
-
-      const extensionMs = hours * 3600 * 1000;
-      const baseTime = store.subscriptionExpiresAt > Date.now() ? store.subscriptionExpiresAt : Date.now();
-      store.subscriptionExpiresAt = baseTime + extensionMs;
-      store.status = 'trial';
-      store.isBlocked = false;
-
-      // Sync to local POS if matching
-      if (storeId === 'pos_local_merchant') {
-        try {
-          const raw = localStorage.getItem(POS_LOCAL_KEY);
-          if (raw) {
-            const pos = JSON.parse(raw);
-            pos.subscription = pos.subscription || {};
-            pos.subscription.expiryDate = store.subscriptionExpiresAt;
-            pos.subscription.pendingVerification = false;
-            pos.subscription.isPaid = false;
-            localStorage.setItem(POS_LOCAL_KEY, JSON.stringify(pos));
-          }
-        } catch(e) {}
-      }
-
-      saveAdminData();
-      refreshAllData();
-      closeModal('extend-modal');
-
-      showToast(`تم تمديد فترة التجربة لمتجر ${store.name} بمقدار ${hours} ساعة إضافية بنجاح!`, 'success');
-    }
-
-    // ACTION 3: حظر / إيقاف الحساب (Block / Suspend Account)
-    function toggleBlockStore(storeId) {
-      const store = AdminData.stores.find(s => s.id === storeId);
-      if (!store) return;
-
-      const willBlock = !store.isBlocked;
-      const confirmMsg = willBlock 
-        ? `هل أنت متأكد من رغبتك في حظر وإيقاف متجر (${store.name})؟ سيتم منع التاجر من إصدار الفواتير.`
-        : `هل تريد رفع الحظر وإعادة تنشيط متجر (${store.name})؟`;
-
-      if (!confirm(confirmMsg)) return;
-
-      store.isBlocked = willBlock;
-      if (willBlock) {
-        store.status = 'blocked';
-      } else {
-        // Restore based on expiry
-        store.status = store.subscriptionExpiresAt > Date.now() ? (store.plan || 'monthly') : 'expired';
-      }
-
-      // Sync local POS if needed
-      if (storeId === 'pos_local_merchant') {
-        try {
-          const raw = localStorage.getItem(POS_LOCAL_KEY);
-          if (raw) {
-            const pos = JSON.parse(raw);
-            pos.subscription = pos.subscription || {};
-            pos.subscription.isBlocked = willBlock;
-            localStorage.setItem(POS_LOCAL_KEY, JSON.stringify(pos));
-          }
-        } catch(e) {}
-      }
-
-      saveAdminData();
-      refreshAllData();
-
-      showToast(willBlock ? `تم إيقاف وحظر متجر ${store.name}` : `تم رفع الحظر عن متجر ${store.name}`, willBlock ? 'error' : 'success');
-    }
-
-    // Quick direct activation from stores tab
-    function quickActivateStore(storeId) {
-      const store = AdminData.stores.find(s => s.id === storeId);
-      if (!store) return;
-
-      const choice = prompt(`اختر نوع باقة التفعيل لمتجر (${store.name}):\n1. باقة شهرية (50,000 ج.س - 30 يوماً)\n2. باقة سنوية (500,000 ج.س - 365 يوماً)`, '1');
-      if (!choice) return;
-
-      const isAnnual = choice.trim() === '2';
-      const durationMs = isAnnual ? (365 * 24 * 3600 * 1000) : (30 * 24 * 3600 * 1000);
-
-      store.status = isAnnual ? 'annual' : 'monthly';
-      store.plan = isAnnual ? 'annual' : 'monthly';
-      store.isBlocked = false;
-      const baseTime = store.subscriptionExpiresAt > Date.now() ? store.subscriptionExpiresAt : Date.now();
-      store.subscriptionExpiresAt = baseTime + durationMs;
-
-      // Also record an approved request for accounting
-      AdminData.subscriptionRequests.unshift({
-        id: 'REQ-DIR-' + Date.now().toString().slice(-4),
-        storeId: store.id,
-        storeName: store.name,
-        ownerName: store.ownerName,
-        phone: store.phone,
-        plan: store.plan,
-        amount: isAnnual ? OFFICIAL_BANK.annualPrice : OFFICIAL_BANK.monthlyPrice,
-        accountTarget: '59189',
-        accountHolder: 'محمد ياسر إبراهيم محمد',
-        last4Digits: 'ADMIN',
-        receiptImage: '',
-        paymentMethod: 'تفعيل مباشر من الإدارة',
-        status: 'approved',
-        submittedAt: Date.now(),
-        approvedAt: Date.now(),
-        notes: 'تفعيل مباشر عبر لوحة السوبر أدمن'
-      });
-
-      saveAdminData();
-      refreshAllData();
-
-      showToast(`تم تفعيل اشتراك متجر ${store.name} بنجاح!`, 'success');
-    }
-
-    function rejectSubscriptionRequest(reqId) {
-      const req = AdminData.subscriptionRequests.find(r => r.id === reqId);
-      if (!req) return;
-
-      const reason = prompt('أدخل سبب رفض طلب التحويل (مثال: إشعار غير واضح، رقم العملية غير مطابق، مبلغ ناقص):', 'رقم عملية التحويل غير متطابق مع كشف حساب 59189');
-      if (reason === null) return;
-
-      req.status = 'rejected';
-      req.notes = reason;
-
-      saveAdminData();
-      refreshAllData();
-
-      showToast(`تم رفض طلب الاشتراك للمتجر ${req.storeName}`, 'info');
-    }
-
-    /* =========================================================================
-       8. RECEIPT MODAL VIEWER
-       ========================================================================= */
-    function openReceiptModal(reqId) {
-      const req = AdminData.subscriptionRequests.find(r => r.id === reqId);
-      if (!req) return;
-
-      document.getElementById('receipt-modal-store-name').textContent = req.storeName;
-      document.getElementById('receipt-modal-plan').textContent = req.plan === 'annual' ? 'باقة سنوية (500,000 ج.س)' : 'باقة شهرية (50,000 ج.س)';
-      document.getElementById('receipt-modal-last4').textContent = '#' + (req.last4Digits || 'غير محدد');
-
-      const imgEl = document.getElementById('receipt-modal-img');
-      const noImgEl = document.getElementById('receipt-modal-no-img');
-
-      if (req.receiptImage) {
-        imgEl.src = req.receiptImage;
-        imgEl.classList.remove('hidden');
-        noImgEl.classList.add('hidden');
-      } else {
-        imgEl.classList.add('hidden');
-        noImgEl.classList.remove('hidden');
-      }
-
-      // Hook up approve button
-      const approveBtn = document.getElementById('receipt-modal-approve-btn');
-      approveBtn.onclick = () => approveSubscriptionRequest(req.id);
-
-      openModal('receipt-modal');
-    }
-
-    /* =========================================================================
-       9. NEW / EDIT STORE MODAL
-       ========================================================================= */
-    function openNewStoreModal() {
-      document.getElementById('store-modal-title').innerHTML = '<i class="fa-solid fa-store text-brand-600"></i> تسجيل متجر جديد يدوياً';
-      document.getElementById('edit-store-id').value = '';
-      document.getElementById('store-form-name').value = '';
-      document.getElementById('store-form-owner').value = '';
-      document.getElementById('store-form-phone').value = '';
-      document.getElementById('store-form-email').value = '';
-      document.getElementById('store-form-type').value = 'سوبرماركت وبقالة';
-      document.getElementById('store-form-address').value = 'الخرطوم';
-      document.getElementById('store-form-plan').value = 'trial';
-      document.getElementById('store-form-status').value = 'active';
-
-      openModal('store-modal');
-    }
-
-    function openEditStoreModal(storeId) {
-      const store = AdminData.stores.find(s => s.id === storeId);
-      if (!store) return;
-
-      document.getElementById('store-modal-title').innerHTML = '<i class="fa-solid fa-pen-to-square text-brand-600"></i> تعديل بيانات متجر ' + store.name;
-      document.getElementById('edit-store-id').value = store.id;
-      document.getElementById('store-form-name').value = store.name;
-      document.getElementById('store-form-owner').value = store.ownerName;
-      document.getElementById('store-form-phone').value = store.phone;
-      document.getElementById('store-form-email').value = store.email || '';
-      document.getElementById('store-form-type').value = store.businessType;
-      document.getElementById('store-form-address').value = store.address || '';
-      document.getElementById('store-form-plan').value = store.plan || 'monthly';
-      document.getElementById('store-form-status').value = store.isBlocked ? 'blocked' : 'active';
-
-      openModal('store-modal');
-    }
-
-    function handleSaveStore(e) {
+    // Manual Activation Form
+    async function handleManualActivation(e) {
       e.preventDefault();
-      const id = document.getElementById('edit-store-id').value;
-      const name = document.getElementById('store-form-name').value.trim();
-      const ownerName = document.getElementById('store-form-owner').value.trim();
-      const phone = document.getElementById('store-form-phone').value.trim();
-      const email = document.getElementById('store-form-email').value.trim();
-      const businessType = document.getElementById('store-form-type').value;
-      const address = document.getElementById('store-form-address').value.trim();
-      const plan = document.getElementById('store-form-plan').value;
-      const statusInput = document.getElementById('store-form-status').value;
+      if (!isAuthenticated) return;
 
-      const isBlocked = statusInput === 'blocked';
-      let durationMs = 72 * 3600 * 1000;
-      let finalStatus = 'trial';
+      const phone = document.getElementById('manual-phone').value.trim();
+      const plan = document.getElementById('manual-plan').value;
+      const days = Number(document.getElementById('manual-days').value) || 30;
+      const btn = document.getElementById('manual-submit-btn');
 
-      if (plan === 'annual') {
-        durationMs = 365 * 24 * 3600 * 1000;
-        finalStatus = 'annual';
-      } else if (plan === 'monthly') {
-        durationMs = 30 * 24 * 3600 * 1000;
-        finalStatus = 'monthly';
-      }
-
-      if (id) {
-        // Edit existing
-        const store = AdminData.stores.find(s => s.id === id);
-        if (store) {
-          store.name = name;
-          store.ownerName = ownerName;
-          store.phone = phone;
-          store.email = email;
-          store.businessType = businessType;
-          store.address = address;
-          store.plan = plan;
-          store.isBlocked = isBlocked;
-          if (isBlocked) store.status = 'blocked';
-          else store.status = finalStatus;
-        }
-        showToast('تم تحديث بيانات المتجر بنجاح', 'success');
-      } else {
-        // Create new store
-        const newStore = {
-          id: 'store_' + Date.now(),
-          name: name,
-          ownerName: ownerName,
-          phone: phone,
-          email: email,
-          businessType: businessType,
-          address: address,
-          status: isBlocked ? 'blocked' : finalStatus,
-          plan: plan,
-          trialStartedAt: Date.now(),
-          subscriptionExpiresAt: Date.now() + durationMs,
-          createdAt: Date.now(),
-          isBlocked: isBlocked,
-          totalSales: 0,
-          totalRevenue: 0
-        };
-        AdminData.stores.unshift(newStore);
-        showToast('تم تسجيل المتجر الجديد بنجاح!', 'success');
-      }
-
-      saveAdminData();
-      refreshAllData();
-      closeModal('store-modal');
-    }
-
-    /* =========================================================================
-       10. FINANCIAL ANALYTICS & EXPORTS
-       ========================================================================= */
-    function renderAnalyticsTab() {
-      const approved = AdminData.subscriptionRequests.filter(r => r.status === 'approved');
-      
-      let monthlyTotal = 0;
-      let annualTotal = 0;
-      let monthlyCount = 0;
-      let annualCount = 0;
-
-      approved.forEach(r => {
-        if (r.plan === 'annual') {
-          annualTotal += (r.amount || OFFICIAL_BANK.annualPrice);
-          annualCount++;
-        } else {
-          monthlyTotal += (r.amount || OFFICIAL_BANK.monthlyPrice);
-          monthlyCount++;
-        }
-      });
-
-      const grandTotal = monthlyTotal + annualTotal;
-
-      document.getElementById('analytics-monthly-total').textContent = monthlyTotal.toLocaleString() + ' ج.س';
-      document.getElementById('analytics-monthly-count').textContent = monthlyCount + ' اشتراك شهري';
-
-      document.getElementById('analytics-annual-total').textContent = annualTotal.toLocaleString() + ' ج.س';
-      document.getElementById('analytics-annual-count').textContent = annualCount + ' اشتراك سنوي';
-
-      document.getElementById('analytics-grand-total').textContent = grandTotal.toLocaleString() + ' ج.س';
-
-      // Transactions log
-      const tbody = document.getElementById('analytics-transactions-body');
-      if (approved.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">لا توجد حركات معتمدة حتى الآن</td></tr>`;
-      } else {
-        tbody.innerHTML = approved.map(r => `
-          <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-            <td class="py-2.5 px-4 font-mono">${r.id}</td>
-            <td class="py-2.5 px-4 font-bold text-slate-800 dark:text-white">${r.storeName}</td>
-            <td class="py-2.5 px-4">${r.plan === 'annual' ? '<span class="text-amber-500 font-bold">باقة سنوية</span>' : '<span class="text-brand-600 font-bold">باقة شهرية</span>'}</td>
-            <td class="py-2.5 px-4 font-mono font-bold">${(r.amount || 0).toLocaleString()} ج.س</td>
-            <td class="py-2.5 px-4 font-mono text-[11px] text-slate-500">${new Date(r.approvedAt || r.submittedAt).toLocaleDateString('ar-SD')}</td>
-            <td class="py-2.5 px-4 font-mono text-emerald-600 font-bold">59189 (محمد ياسر)</td>
-          </tr>
-        `).join('');
-      }
-    }
-
-    function exportStoresCSV() {
-      let csv = "ID,StoreName,OwnerName,Phone,Email,BusinessType,Address,Status,Plan,ExpiresAt\n";
-      AdminData.stores.forEach(s => {
-        csv += `"${s.id}","${s.name}","${s.ownerName}","${s.phone}","${s.email || ''}","${s.businessType}","${s.address || ''}","${s.status}","${s.plan}","${new Date(s.subscriptionExpiresAt).toISOString()}"\n`;
-      });
-      downloadFile(csv, 'cashdar_stores_' + Date.now() + '.csv', 'text/csv;charset=utf-8;');
-      showToast('تم تصدير ملف المتاجر CSV بنجاح', 'info');
-    }
-
-    function exportRevenueCSV() {
-      let csv = "RequestID,StoreName,Plan,Amount,PaymentMethod,TargetAccount,AccountHolder,ApprovedAt\n";
-      AdminData.subscriptionRequests.filter(r => r.status === 'approved').forEach(r => {
-        csv += `"${r.id}","${r.storeName}","${r.plan}","${r.amount}","${r.paymentMethod}","${r.accountTarget}","${r.accountHolder}","${new Date(r.approvedAt || r.submittedAt).toISOString()}"\n`;
-      });
-      downloadFile(csv, 'cashdar_revenue_' + Date.now() + '.csv', 'text/csv;charset=utf-8;');
-      showToast('تم تصدير تقرير الإيرادات CSV بنجاح', 'info');
-    }
-
-    function exportDataToJSON() {
-      const dataStr = JSON.stringify(AdminData, null, 2);
-      downloadFile(dataStr, 'cashdar_super_admin_backup_' + Date.now() + '.json', 'application/json');
-      showToast('تم حفظ وتصدير النسخة الاحتياطية بنجاح', 'success');
-    }
-
-    function downloadFile(content, fileName, contentType) {
-      const blob = new Blob([content], { type: contentType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    /* =========================================================================
-       11. SUPABASE INTEGRATION ARCHITECTURE
-       ========================================================================= */
-    function loadSupabaseSettings() {
-      const cfg = localStorage.getItem(SUPABASE_CONFIG_KEY);
-      if (cfg) {
-        try {
-          const parsed = JSON.parse(cfg);
-          if (parsed.url) document.getElementById('supabase-url').value = parsed.url;
-          if (parsed.key) document.getElementById('supabase-anon-key').value = parsed.key;
-          if (parsed.connected) {
-            updateSupabaseStatus(true);
-          }
-        } catch(e) {}
-      }
-    }
-
-    function saveSupabaseSettings() {
-      const url = document.getElementById('supabase-url').value.trim();
-      const key = document.getElementById('supabase-anon-key').value.trim();
-
-      const cfg = { url, key, connected: !!(url && key) };
-      localStorage.setItem(SUPABASE_CONFIG_KEY, JSON.stringify(cfg));
-      updateSupabaseStatus(cfg.connected);
-      showToast('تم حفظ إعدادات Supabase بنجاح!', 'success');
-    }
-
-    function updateSupabaseStatus(isConnected) {
-      const badge = document.getElementById('supabase-status-indicator');
-      if (isConnected) {
-        badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20';
-        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>متصل سحابياً (Supabase Connected)</span>';
-      } else {
-        badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20';
-        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span><span>وضع التخزين المحلي (Local Persistence)</span>';
-      }
-    }
-
-    function testSupabaseConnection() {
-      const url = document.getElementById('supabase-url').value.trim();
-      const key = document.getElementById('supabase-anon-key').value.trim();
-
-      if (!url || !key) {
-        alert('يرجى إدخال رابط مشروع Supabase ومفتاح Anon أولاً');
+      if (!phone) {
+        alert("يرجى إدخال رقم الهاتف.");
         return;
       }
 
-      // Live fetch check to Supabase REST endpoint
-      fetch(`${url}/rest/v1/`, {
-        headers: {
-          'apikey': key,
-          'Authorization': `Bearer ${key}`
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري التفعيل في Supabase...';
+
+      try {
+        const expiryDate = new Date(Date.now() + days * 24 * 3600 * 1000).toISOString();
+        const status = plan === 'trial_extend' ? 'trial' : 'active';
+
+        // Upsert into stores
+        await supabase.from('stores').upsert({
+          phone: phone,
+          status: status,
+          trial_expiry: expiryDate,
+          created_at: new Date().toISOString()
+        }, { onConflict: 'phone' });
+
+        // Insert into subscriptions if paid
+        if (status === 'active') {
+          await supabase.from('subscriptions').insert([{
+            phone: phone,
+            plan: plan,
+            amount: plan === 'annual' ? 500000 : 50000,
+            account_transferred_to: '59189',
+            status: 'active',
+            last_4_digits: 'MANUAL',
+            created_at: new Date().toISOString()
+          }]);
         }
-      })
-      .then(res => {
-        if (res.ok || res.status === 200 || res.status === 404) {
-          updateSupabaseStatus(true);
-          showToast('تم الاتصال بنجاح مع مشروع Supabase الخاص بك!', 'success');
-        } else {
-          showToast('فشل التحقق من الاتصال، يرجى مراجعة الرابط والمفتاح', 'error');
-        }
-      })
-      .catch(err => {
-        // Fallback simulated success if blocked by CORS
-        updateSupabaseStatus(true);
-        showToast('تم حفظ الإعدادات وتهيئة الربط بنجاح!', 'success');
-      });
-    }
 
-    function toggleSupabaseSync() {
-      const badge = document.getElementById('supabase-status-indicator');
-      const isCurrentlyCloud = badge.textContent.includes('Connected');
-      updateSupabaseStatus(!isCurrentlyCloud);
-      showToast(isCurrentlyCloud ? 'تم التحويل إلى وضع التخزين المحلي' : 'تم تفعيل المزامنة السحابية', 'info');
-    }
-
-    function copySqlSchema() {
-      const code = document.getElementById('sql-schema-box').innerText;
-      navigator.clipboard.writeText(code);
-      showToast('تم نسخ كود SQL لإنشاء جداول Supabase بنجاح', 'success');
-    }
-
-    function resetToDefaultData() {
-      if (confirm('هل أنت متأكد من رغبتك في استعادة البيانات الافتراضية؟ سيتم مسح أي تعديلات محلية تجريبية.')) {
-        AdminData = JSON.parse(JSON.stringify(DEFAULT_SEED_DATA));
-        saveAdminData();
-        refreshAllData();
-        showToast('تمت استعادة البيانات الافتراضية بنجاح!', 'success');
+        alert(`تم تفعيل المتجر (${phone}) بنجاح!`);
+        document.getElementById('manual-phone').value = '';
+        loadAllData();
+        switchTab('stores');
+      } catch (err) {
+        console.error("Manual activation error:", err);
+        alert("حدث خطأ أثناء التفعيل في Supabase.");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-check-double"></i> تفعيل المتجر فورياً في Supabase';
       }
     }
 
-    /* =========================================================================
-       12. UTILITIES & MODAL HELPERS
-       ========================================================================= */
+    function previewImage(src) {
+      const img = document.getElementById('preview-image-elem');
+      img.src = src;
+      openModal('image-modal');
+    }
+
     function openModal(id) {
-      const el = document.getElementById(id);
-      if (el) el.classList.remove('hidden');
+      const m = document.getElementById(id);
+      if (m) m.classList.remove('hidden');
     }
 
     function closeModal(id) {
-      const el = document.getElementById(id);
-      if (el) el.classList.add('hidden');
+      const m = document.getElementById(id);
+      if (m) m.classList.add('hidden');
     }
 
-    function copyAccountNo() {
-      navigator.clipboard.writeText(OFFICIAL_BANK.accountNumber);
-      showToast('تم نسخ رقم الحساب البنكي الرسمي: 59189', 'success');
-    }
-
-    function showToast(message, type = 'info') {
-      const container = document.getElementById('toast-container');
-      const toast = document.createElement('div');
-      
-      let bg = 'bg-slate-900 text-white';
-      let icon = 'fa-solid fa-circle-info text-sky-400';
-      if (type === 'success') {
-        bg = 'bg-brand-900 text-white border border-brand-700';
-        icon = 'fa-solid fa-circle-check text-emerald-400';
-      } else if (type === 'error') {
-        bg = 'bg-red-950 text-white border border-red-800';
-        icon = 'fa-solid fa-triangle-exclamation text-red-400';
+    // Auto-check authentication and poll data
+    window.addEventListener('DOMContentLoaded', () => {
+      const cachedAuth = sessionStorage.getItem('cashdar_admin_auth');
+      if (cachedAuth === 'authenticated') {
+        unlockDashboard();
+      } else {
+        lockAdmin();
       }
 
-      toast.className = `${bg} px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-xs font-bold transition-all duration-300 transform translate-y-2 pointer-events-auto`;
-      toast.innerHTML = `
-        <i class="${icon} text-base"></i>
-        <span>${message}</span>
-      `;
-
-      container.appendChild(toast);
-      setTimeout(() => {
-        toast.style.transform = 'translate-y-0';
-      }, 10);
-
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translate-y-2';
-        setTimeout(() => toast.remove(), 300);
-      }, 3500);
-    }
-
-    // Launch application on window load
-    window.addEventListener('DOMContentLoaded', () => {
-      initAdminData();
+      // Auto-poll data every 20 seconds only if authenticated
+      setInterval(() => {
+        if (isAuthenticated) {
+          loadAllData();
+        }
+      }, 20000);
     });
   </script>
 </body>
-</html>
+              </html>
