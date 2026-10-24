@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>كاشدار CASHDAR - لوحة التحكم المركزية (Super Admin)</title>
+  <title>كاشدار CASHDAR - لوحة التحكم المركزية السحابية (Super Admin)</title>
   
   <!-- Supabase JS Client v2 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -55,17 +55,27 @@
       height: 6px;
     }
     ::-webkit-scrollbar-track {
-      background: #f1f5f9;
+      background: #0f172a;
     }
     ::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
+      background: #334155;
       border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
     }
     .pulse-glow {
       box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
     }
     .shield-glow {
       box-shadow: 0 0 35px rgba(16, 185, 129, 0.25);
+    }
+    @keyframes spinPulse {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .spin-fast {
+      animation: spinPulse 0.8s linear infinite;
     }
   </style>
 </head>
@@ -103,7 +113,6 @@
             <i class="fa-solid fa-key ml-1 text-amber-400"></i> كلمة سر لوحة التحكم:
           </label>
           <div class="relative flex items-center">
-            <!-- ID: passwordInput -->
             <input 
               type="password" 
               id="passwordInput" 
@@ -113,7 +122,6 @@
               placeholder="أدخل كلمة السر المعتمدة..." 
               class="w-full bg-slate-950 border border-slate-700 focus:border-brand-500 pr-4 pl-12 py-3.5 rounded-2xl text-sm font-mono text-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 transition shadow-inner"
             >
-            <!-- Eye Button: onclick="togglePass()" -->
             <button 
               type="button" 
               id="toggle-pwd-btn"
@@ -126,7 +134,7 @@
           </div>
         </div>
 
-        <!-- Open Dashboard Button: onclick="loginAdmin()" -->
+        <!-- Open Dashboard Button -->
         <button 
           type="button" 
           onclick="loginAdmin()"
@@ -138,10 +146,14 @@
         </button>
       </div>
 
-      <!-- Security Notice -->
-      <div class="mt-6 pt-4 border-t border-slate-800/80 text-center text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
-        <i class="fa-solid fa-shield-halved text-emerald-500"></i>
-        <span>لا يتم تحميل بيانات المتاجر والاشتراكات من Supabase إلا بعد التوثيق</span>
+      <!-- Supabase Direct Connection Info -->
+      <div class="mt-6 pt-4 border-t border-slate-800/80 space-y-1.5 text-center text-[11px] text-slate-400">
+        <div class="flex items-center justify-center gap-1.5 text-emerald-400 font-bold">
+          <i class="fa-solid fa-database text-xs"></i>
+          <span>متصل بقاعدة Supabase:</span>
+          <span class="font-mono text-[10px] text-slate-300">ywhhncvtznvazhpacxte</span>
+        </div>
+        <p class="text-slate-500 text-[10px]">يتم جلب بيانات المتاجر والاشتراكات آلياً فور إدخال كلمة السر</p>
       </div>
 
     </div>
@@ -199,7 +211,7 @@
             </button>
 
             <!-- Refresh Data Button -->
-            <button onclick="loadDataFromSupabase()" class="p-2 text-slate-300 hover:text-brand-400 rounded-xl hover:bg-slate-800 transition" title="تحديث البيانات">
+            <button onclick="loadDataFromSupabase()" class="p-2 text-slate-300 hover:text-brand-400 rounded-xl hover:bg-slate-800 transition" title="تحديث البيانات من Supabase">
               <i id="refresh-icon" class="fa-solid fa-arrows-rotate text-lg"></i>
             </button>
 
@@ -256,14 +268,14 @@
         <!-- Cloud DB Status Card -->
         <div class="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-3.5 text-xs space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-slate-400 font-bold">حالة اتصال Supabase:</span>
-            <span class="flex items-center gap-1.5 text-emerald-400 font-mono text-[11px]">
+            <span class="text-slate-400 font-bold">اتصال Supabase:</span>
+            <span id="cloud-status-badge" class="flex items-center gap-1.5 text-emerald-400 font-mono text-[11px]">
               <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-              متصل
+              مباشر ومفعل
             </span>
           </div>
-          <p class="text-[11px] text-slate-500 font-mono break-all leading-tight">
-            ywhhncvtznvazhpacxte.supabase.co
+          <p class="text-[10px] text-slate-500 font-mono break-all leading-tight">
+            https://ywhhncvtznvazhpacxte.supabase.co
           </p>
         </div>
       </aside>
@@ -282,7 +294,7 @@
                 <i class="fa-solid fa-store text-emerald-400"></i>
               </div>
               <div id="kpi-total-stores" class="text-2xl font-black text-white font-mono">0</div>
-              <span class="text-[10px] text-slate-500">سجلت من تطبيق التاجر</span>
+              <span class="text-[10px] text-slate-500">في جدول stores</span>
             </div>
 
             <div class="bg-slate-950 border border-slate-800 p-4 rounded-2xl shadow-sm">
@@ -291,7 +303,7 @@
                 <i class="fa-solid fa-clock-rotate-left"></i>
               </div>
               <div id="kpi-pending-subs" class="text-2xl font-black text-amber-400 font-mono">0</div>
-              <span class="text-[10px] text-slate-500">تحويلات بنكك بانتظار الاعتماد</span>
+              <span class="text-[10px] text-slate-500">تحويلات بانتظار الاعتماد</span>
             </div>
 
             <div class="bg-slate-950 border border-slate-800 p-4 rounded-2xl shadow-sm">
@@ -326,7 +338,7 @@
             </div>
 
             <div id="dashboard-recent-subs" class="space-y-2">
-              <div class="p-6 text-center text-slate-500 text-xs">جاري تحميل البيانات...</div>
+              <div class="p-6 text-center text-slate-500 text-xs">جاري تحميل البيانات من Supabase...</div>
             </div>
           </div>
 
@@ -337,16 +349,16 @@
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-950 p-4 rounded-2xl border border-slate-800">
             <div>
               <h2 class="text-base font-bold text-white">سجل المتاجر المسجلة (جدول stores)</h2>
-              <p class="text-xs text-slate-400">جميع المتاجر التي سجلت في كاشدار مع حالة التجربة (72 ساعة) والاشتراك</p>
+              <p class="text-xs text-slate-400">جميع المتاجر المتصلة بقاعدة البيانات مع حالة التجربة (72 ساعة) والاشتراك</p>
             </div>
 
-            <!-- Search & Filter -->
+            <!-- Search & Refresh -->
             <div class="flex items-center gap-2 w-full sm:w-auto">
               <div class="relative flex-1 sm:w-64">
                 <i class="fa-solid fa-magnifying-glass absolute right-3 top-3 text-slate-500 text-xs"></i>
-                <input type="text" id="store-search-input" oninput="filterStoresTable()" placeholder="ابحث باسم المتجر أو الهاتف..." class="w-full bg-slate-900 border border-slate-800 pr-9 pl-3 py-2 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+                <input type="text" id="store-search-input" oninput="filterStoresTable()" placeholder="ابحث باسم المتجر، المالك، أو الهاتف..." class="w-full bg-slate-900 border border-slate-800 pr-9 pl-3 py-2 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-brand-500">
               </div>
-              <button onclick="loadDataFromSupabase()" class="bg-slate-900 border border-slate-800 hover:bg-slate-800 px-3 py-2 rounded-xl text-xs text-slate-300">
+              <button onclick="loadDataFromSupabase()" class="bg-slate-900 border border-slate-800 hover:bg-slate-800 px-3 py-2 rounded-xl text-xs text-slate-300" title="تحديث من Supabase">
                 <i class="fa-solid fa-rotate-right"></i>
               </button>
             </div>
@@ -358,17 +370,17 @@
                 <thead class="bg-slate-900/80 text-slate-400 font-bold border-b border-slate-800">
                   <tr>
                     <th class="p-3.5">اسم المتجر</th>
+                    <th class="p-3.5">اسم المالك</th>
                     <th class="p-3.5">رقم الهاتف</th>
                     <th class="p-3.5">نوع النشاط</th>
-                    <th class="p-3.5">المدينة / العنوان</th>
                     <th class="p-3.5">تاريخ التسجيل</th>
                     <th class="p-3.5">فترة التجربة (72 ساعة)</th>
-                    <th class="p-3.5">الحالة</th>
-                    <th class="p-3.5 text-center">الإجراءات</th>
+                    <th class="p-3.5">حالة الاشتراك</th>
+                    <th class="p-3.5 text-center">الإجراءات المباشرة</th>
                   </tr>
                 </thead>
                 <tbody id="stores-table-body" class="divide-y divide-slate-800/60 font-mono text-slate-300">
-                  <tr><td colspan="8" class="p-6 text-center text-slate-500 font-sans">جاري التحميل...</td></tr>
+                  <tr><td colspan="8" class="p-6 text-center text-slate-500 font-sans">جاري التحميل من Supabase...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -383,7 +395,7 @@
                 <h2 class="text-base font-bold text-white">إشعارات وطلبات التحويل (جدول subscriptions)</h2>
                 <span class="bg-amber-500/20 text-amber-300 text-xs px-2.5 py-0.5 rounded-full font-bold border border-amber-500/30">حساب 59189</span>
               </div>
-              <p class="text-xs text-slate-400">راجع آخر 4 أرقام من عملية بنكك أو صورة الإشعار وقم باعتماد التفعيل الفوري للمتجر</p>
+              <p class="text-xs text-slate-400">تحقق من آخر 4 أرقام من عملية التحويل واعتمد تفعيل الترخيص فوراً في Supabase</p>
             </div>
 
             <button onclick="loadDataFromSupabase()" class="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-2 shadow">
@@ -399,17 +411,15 @@
                   <tr>
                     <th class="p-3.5">تاريخ الطلب</th>
                     <th class="p-3.5">اسم المتجر</th>
-                    <th class="p-3.5">رقم الهاتف</th>
-                    <th class="p-3.5">الباقة</th>
-                    <th class="p-3.5">المبلغ</th>
-                    <th class="p-3.5">آخر 4 أرقام التحويل</th>
-                    <th class="p-3.5">صورة الإشعار</th>
+                    <th class="p-3.5">نوع الباقة</th>
+                    <th class="p-3.5">المبلغ المستحق</th>
+                    <th class="p-3.5">آخر 4 أرقام من التحويل</th>
                     <th class="p-3.5">حالة الطلب</th>
                     <th class="p-3.5 text-center">قرار التفعيل</th>
                   </tr>
                 </thead>
                 <tbody id="subscriptions-table-body" class="divide-y divide-slate-800/60 font-mono text-slate-300">
-                  <tr><td colspan="9" class="p-6 text-center text-slate-500 font-sans">جاري التحميل...</td></tr>
+                  <tr><td colspan="7" class="p-6 text-center text-slate-500 font-sans">جاري التحميل من Supabase...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -422,14 +432,25 @@
             <div class="border-b border-slate-800 pb-3">
               <h3 class="text-base font-bold text-white flex items-center gap-2">
                 <i class="fa-solid fa-key text-amber-400"></i>
-                <span>تفعيل متجر يدوياً دون إشعار</span>
+                <span>تفعيل متجر يدوياً في Supabase</span>
               </h3>
               <p class="text-xs text-slate-400 mt-1">لتفعيل التراخيص للتجار الذين سددوا نقداً أو عبر قنوات أخرى</p>
             </div>
 
             <form onsubmit="handleManualActivation(event)" class="space-y-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-300 mb-1">اسم المتجر *</label>
+                  <input type="text" id="manual-store-name" required placeholder="مثال: بقالة النيل" class="w-full bg-slate-900 border border-slate-800 px-3.5 py-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-brand-500">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-300 mb-1">اسم المالك</label>
+                  <input type="text" id="manual-owner-name" placeholder="اسم صاحب المتجر" class="w-full bg-slate-900 border border-slate-800 px-3.5 py-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-brand-500">
+                </div>
+              </div>
+
               <div>
-                <label class="block text-xs font-bold text-slate-300 mb-1">رقم هاتف المتجر المسجل في Supabase *</label>
+                <label class="block text-xs font-bold text-slate-300 mb-1">رقم هاتف المتجر *</label>
                 <input type="tel" id="manual-phone" required placeholder="09xxxxxxx أو 01xxxxxxx" class="w-full bg-slate-900 border border-slate-800 px-3.5 py-2.5 rounded-xl text-xs font-mono text-emerald-400 focus:outline-none focus:border-brand-500">
               </div>
 
@@ -478,33 +499,56 @@
   </div>
 
   <!-- ======================================================= -->
-  <!-- JAVASCRIPT AT THE BOTTOM IN GLOBAL SCOPE                -->
+  <!-- JAVASCRIPT ENGINE & SUPABASE DIRECT REST DATA LAYER     -->
   <!-- ======================================================= -->
   <script>
     const SUPER_ADMIN_PASSWORD = 'Mpmomimu11$';
     const SUPABASE_URL = 'https://ywhhncvtznvazhpacxte.supabase.co';
-    const SUPABASE_KEY = 'Sb_publishable_m6uLiIBb_dFIvqTrOE5ojw_xMjaXmBM';
+    const RAW_SUPABASE_KEY = 'Sb_publishable_m6uLiIBb_dFIvqTrOE5ojw_xMjaXmBM';
+    
+    // Normalize publishable key (Supabase gateway requires lowercase 'sb_publishable_...')
+    const SUPABASE_KEY = RAW_SUPABASE_KEY.startsWith('Sb_') ? 'sb_' + RAW_SUPABASE_KEY.slice(3) : RAW_SUPABASE_KEY;
 
     let supabaseClient = null;
     let allStores = [];
     let allSubscriptions = [];
 
-    // Safe Supabase Initializer
+    // Safe Supabase SDK Initializer
     function getSupabase() {
       if (!supabaseClient) {
         try {
           if (window.supabase && typeof window.supabase.createClient === 'function') {
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            console.log('[CASHDAR] Supabase initialized');
+            console.log('[CASHDAR] Supabase SDK client initialized');
           }
         } catch (e) {
-          console.warn('[CASHDAR] Supabase init caught:', e);
+          console.warn('[CASHDAR] Supabase SDK init warning:', e);
         }
       }
       return supabaseClient;
     }
 
-    // 1. Toggle Password Visibility in Global Scope
+    // Direct REST Fallback (Guarantee data fetching even if CDN script is delayed or blocked)
+    async function directSupabaseFetch(endpoint, method = 'GET', body = null) {
+      const headers = {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      };
+
+      const options = { method, headers };
+      if (body) options.body = JSON.stringify(body);
+
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, options);
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Supabase REST Error (${res.status}): ${errorText}`);
+      }
+      return await res.json();
+    }
+
+    // Toggle Password Visibility
     function togglePass() {
       const input = document.getElementById('passwordInput');
       const icon = document.getElementById('eyeIcon');
@@ -522,28 +566,37 @@
       }
     }
 
-    // 2. Login Admin in Global Scope
-    function loginAdmin() {
+    // Login Admin Action
+    async function loginAdmin() {
       const input = document.getElementById('passwordInput');
-      if (input && input.value === 'Mpmomimu11$') {
+      const btn = document.getElementById('login-btn');
+
+      if (input && input.value === SUPER_ADMIN_PASSWORD) {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الاتصال بـ Supabase...';
+        btn.disabled = true;
+
+        sessionStorage.setItem('cashdar_admin_auth', 'authenticated');
+
         const loginModal = document.getElementById('loginModal');
         const mainContent = document.getElementById('mainContent');
         
         if (loginModal) loginModal.style.display = 'none';
         if (mainContent) mainContent.style.display = 'block';
 
-        sessionStorage.setItem('cashdar_admin_auth', 'authenticated');
         getSupabase();
-        loadDataFromSupabase();
+        await loadDataFromSupabase();
+
+        btn.innerHTML = '<i class="fa-solid fa-unlock"></i> فتح لوحة التحكم';
+        btn.disabled = false;
       } else {
-        alert('كلمة السر غير صحيحة!');
+        alert('كلمة السر غير صحيحة! يرجى إدخال كلمة سر الإدارة المركزية.');
         if (input) {
           input.focus();
         }
       }
     }
 
-    // Lock Admin
+    // Lock Admin Action
     function lockAdmin() {
       sessionStorage.removeItem('cashdar_admin_auth');
       const loginModal = document.getElementById('loginModal');
@@ -558,47 +611,7 @@
       }
     }
 
-    // 3. Load Data from Supabase
-    async function loadDataFromSupabase() {
-      const refreshIcon = document.getElementById('refresh-icon');
-      if (refreshIcon) refreshIcon.classList.add('fa-spin');
-
-      const client = getSupabase();
-      if (!client) {
-        if (refreshIcon) refreshIcon.classList.remove('fa-spin');
-        return;
-      }
-
-      try {
-        const { data: storesData, error: storesErr } = await client
-          .from('stores')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (!storesErr && storesData) {
-          allStores = storesData;
-        }
-
-        const { data: subsData, error: subsErr } = await client
-          .from('subscriptions')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (!subsErr && subsData) {
-          allSubscriptions = subsData;
-        }
-
-        renderDashboard();
-        renderStoresTable();
-        renderSubscriptionsTable();
-      } catch (err) {
-        console.error('Fetch data error:', err);
-      } finally {
-        if (refreshIcon) refreshIcon.classList.remove('fa-spin');
-      }
-    }
-
-    // Switch Tabs
+    // Switch Workspace Tabs
     function switchTab(tabId) {
       document.querySelectorAll('.tab-pane').forEach(el => {
         el.style.display = 'none';
@@ -623,12 +636,68 @@
       });
     }
 
+    // Main Supabase Loader (SDK with REST Fallback)
+    async function loadDataFromSupabase() {
+      const refreshIcon = document.getElementById('refresh-icon');
+      if (refreshIcon) refreshIcon.classList.add('spin-fast');
+
+      try {
+        const client = getSupabase();
+        let stores = null;
+        let subs = null;
+
+        if (client) {
+          const [storesRes, subsRes] = await Promise.all([
+            client.from('stores').select('*').order('created_at', { ascending: false }),
+            client.from('subscriptions').select('*').order('created_at', { ascending: false })
+          ]);
+          if (!storesRes.error && storesRes.data) stores = storesRes.data;
+          if (!subsRes.error && subsRes.data) subs = subsRes.data;
+        }
+
+        // Direct fetch fallback if SDK didn't return data
+        if (!stores) {
+          stores = await directSupabaseFetch('stores?select=*&order=created_at.desc');
+        }
+        if (!subs) {
+          subs = await directSupabaseFetch('subscriptions?select=*&order=created_at.desc');
+        }
+
+        allStores = stores || [];
+        allSubscriptions = subs || [];
+
+        renderDashboard();
+        renderStoresTable();
+        renderSubscriptionsTable();
+
+        const badge = document.getElementById('cloud-status-badge');
+        if (badge) {
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> متصل (${allStores.length} متاجر)`;
+        }
+      } catch (err) {
+        console.error('[CASHDAR] Fetch data error:', err);
+        const badge = document.getElementById('cloud-status-badge');
+        if (badge) {
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> تعذر التحديث`;
+        }
+      } finally {
+        if (refreshIcon) refreshIcon.classList.remove('spin-fast');
+      }
+    }
+
     // Render Dashboard KPIs
     function renderDashboard() {
       const totalStores = allStores.length;
       const pendingSubs = allSubscriptions.filter(s => s.status === 'pending');
-      const activeSubs = allSubscriptions.filter(s => s.status === 'active');
-      const totalRevenue = activeSubs.reduce((acc, s) => acc + (Number(s.amount) || 0), 0);
+      const activeSubs = allStores.filter(s => s.status === 'active');
+      
+      // Calculate revenue based on subscriptions
+      let totalRevenue = 0;
+      allSubscriptions.forEach(sub => {
+        if (sub.status === 'active' || sub.status === 'approved') {
+          totalRevenue += sub.plan_type === 'annual' ? 500000 : 50000;
+        }
+      });
 
       const kpiStores = document.getElementById('kpi-total-stores');
       const kpiPending = document.getElementById('kpi-pending-subs');
@@ -655,31 +724,37 @@
         container.innerHTML = `
           <div class="py-8 text-center text-slate-500 text-xs">
             <i class="fa-solid fa-check-circle text-2xl text-emerald-500/50 mb-2"></i>
-            <p>لا توجد طلبات تحويل معلقة حالياً. كافة العمليات معتمدة ومفعلة!</p>
+            <p>لا توجد طلبات تحويل معلقة حالياً لحساب 59189.</p>
           </div>
         `;
         return;
       }
 
-      container.innerHTML = pendingSubs.slice(0, 5).map(sub => `
-        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs">
-          <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-black">
-              <i class="fa-solid fa-receipt"></i>
+      container.innerHTML = pendingSubs.slice(0, 5).map(sub => {
+        const amount = sub.plan_type === 'annual' ? 500000 : 50000;
+        const planText = sub.plan_type === 'annual' ? 'باقة سنوية (500k)' : 'باقة شهرية (50k)';
+        return `
+          <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-black">
+                <i class="fa-solid fa-receipt"></i>
+              </div>
+              <div>
+                <div class="font-bold text-white">${sub.store_name || 'متجر غير معنون'}</div>
+                <div class="text-[11px] text-slate-400 font-mono">
+                  ${planText} | تحويل: <b class="text-amber-400 font-bold">آخر 4 أرقام (#${sub.receipt_last_4_digits || '----'})</b>
+                </div>
+              </div>
             </div>
-            <div>
-              <div class="font-bold text-white">${sub.store_name || 'متجر غير معنون'}</div>
-              <div class="text-[11px] text-slate-400 font-mono">هاتف: ${sub.phone} | تحويل: <b class="text-amber-400">آخر 4 أرقام (${sub.last_4_digits || '----'})</b></div>
+            <div class="flex items-center gap-2">
+              <span class="font-mono font-bold text-emerald-400">${amount.toLocaleString()} جنيه</span>
+              <button onclick="approveSubscription('${sub.id}', '${sub.store_id || ''}', '${sub.plan_type}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition">
+                تفعيل المتجر
+              </button>
             </div>
           </div>
-          <div class="flex items-center gap-2">
-            <span class="font-mono font-bold text-emerald-400">${(Number(sub.amount) || 0).toLocaleString()} جنيه</span>
-            <button onclick="approveSubscription('${sub.id}', '${sub.phone}', '${sub.plan}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition">
-              تفعيل المتجر
-            </button>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     // Render Stores Table
@@ -688,14 +763,14 @@
       if (!tbody) return;
 
       if (allStores.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-500 font-sans">لا توجد متاجر مسجلة في جدول stores حتى الآن</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-500 font-sans">لا توجد متاجر مسجلة في جدول stores في Supabase حالياً</td></tr>`;
         return;
       }
 
       tbody.innerHTML = allStores.map(store => {
         let trialLabel = '';
-        if (store.trial_expiry) {
-          const diff = new Date(store.trial_expiry) - new Date();
+        if (store.trial_ends_at) {
+          const diff = new Date(store.trial_ends_at) - new Date();
           if (diff > 0) {
             const h = Math.floor(diff / (3600 * 1000));
             trialLabel = `<span class="text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded text-[10px]">متبقي ${h} ساعة</span>`;
@@ -707,22 +782,27 @@
         }
 
         const statusBadge = store.status === 'active' 
-          ? `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold">نشط ومدفوع</span>`
+          ? `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold">نشط ومدفوع (${store.subscription_type || 'شهري'})</span>`
           : `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold">فترة تجريبية</span>`;
 
         return `
           <tr class="hover:bg-slate-900/60 transition">
             <td class="p-3.5 font-sans font-bold text-white">${store.store_name || '-'}</td>
+            <td class="p-3.5 font-sans text-slate-300">${store.owner_name || '-'}</td>
             <td class="p-3.5 text-slate-300 font-mono">${store.phone || '-'}</td>
             <td class="p-3.5 font-sans text-slate-400">${store.business_type || 'عام'}</td>
-            <td class="p-3.5 font-sans text-slate-400">${store.address || '-'}</td>
             <td class="p-3.5 text-slate-500 text-[11px]">${store.created_at ? new Date(store.created_at).toLocaleDateString('ar-EG') : '-'}</td>
             <td class="p-3.5">${trialLabel}</td>
             <td class="p-3.5">${statusBadge}</td>
             <td class="p-3.5 text-center">
-              <button onclick="quickActivateStore('${store.phone}')" class="bg-slate-800 hover:bg-brand-600 hover:text-white text-slate-300 px-2.5 py-1 rounded-lg text-[11px] transition font-sans font-bold" title="تفعيل اشتراك هذا المتجر">
-                <i class="fa-solid fa-bolt ml-1 text-amber-400"></i> تفعيل
-              </button>
+              <div class="flex items-center justify-center gap-1.5">
+                <button onclick="quickActivateStore('${store.id}', '${store.store_name}', '${store.phone}')" class="bg-slate-800 hover:bg-brand-600 hover:text-white text-slate-300 px-2.5 py-1 rounded-lg text-[11px] transition font-sans font-bold" title="تفعيل ترخيص المتجر">
+                  <i class="fa-solid fa-bolt ml-1 text-amber-400"></i> تفعيل
+                </button>
+                <button onclick="extendTrialHours('${store.id}', 72)" class="bg-slate-800 hover:bg-sky-600 hover:text-white text-slate-300 px-2 py-1 rounded-lg text-[11px] transition font-sans font-bold" title="تمديد التجربة 72 ساعة">
+                  <i class="fa-solid fa-clock-rotate-left"></i> +72h
+                </button>
+              </div>
             </td>
           </tr>
         `;
@@ -744,22 +824,14 @@
       if (!tbody) return;
 
       if (allSubscriptions.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-slate-500 font-sans">لا توجد طلبات اشتراكات مسجلة</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500 font-sans">لا توجد طلبات اشتراكات مسجلة في جدول subscriptions حالياً</td></tr>`;
         return;
       }
 
       tbody.innerHTML = allSubscriptions.map(sub => {
         const isPending = sub.status === 'pending';
-        const planText = sub.plan === 'annual' ? 'سنوي (500,000)' : 'شهري (50,000)';
-        
-        let receiptBtn = '<span class="text-slate-600 font-sans">بدون صورة</span>';
-        if (sub.receipt_image) {
-          receiptBtn = `
-            <button onclick="previewImage('${sub.receipt_image}')" class="text-brand-400 hover:text-brand-300 font-sans font-bold flex items-center gap-1">
-              <i class="fa-solid fa-image"></i> عرض الإشعار
-            </button>
-          `;
-        }
+        const planText = sub.plan_type === 'annual' ? 'سنوي (500,000)' : 'شهري (50,000)';
+        const amount = sub.plan_type === 'annual' ? 500000 : 50000;
 
         const statusBadge = isPending
           ? `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold animate-pulse">قيد المراجعة</span>`
@@ -769,15 +841,13 @@
           <tr class="hover:bg-slate-900/60 transition">
             <td class="p-3.5 text-slate-400 text-[11px]">${new Date(sub.created_at).toLocaleString('ar-EG')}</td>
             <td class="p-3.5 font-sans font-bold text-white">${sub.store_name || '-'}</td>
-            <td class="p-3.5 text-slate-300 font-mono">${sub.phone || '-'}</td>
             <td class="p-3.5 font-sans text-slate-300">${planText}</td>
-            <td class="p-3.5 font-mono text-emerald-400 font-bold">${(Number(sub.amount) || 0).toLocaleString()}</td>
-            <td class="p-3.5 font-mono font-black text-amber-400 text-sm tracking-widest">${sub.last_4_digits || '----'}</td>
-            <td class="p-3.5">${receiptBtn}</td>
+            <td class="p-3.5 font-mono text-emerald-400 font-bold">${amount.toLocaleString()}</td>
+            <td class="p-3.5 font-mono font-black text-amber-400 text-sm tracking-widest">#${sub.receipt_last_4_digits || '----'}</td>
             <td class="p-3.5">${statusBadge}</td>
             <td class="p-3.5 text-center">
               ${isPending ? `
-                <button onclick="approveSubscription('${sub.id}', '${sub.phone}', '${sub.plan}')" class="bg-brand-600 hover:bg-brand-500 text-white font-sans font-bold px-3 py-1.5 rounded-lg text-xs transition shadow flex items-center gap-1.5 mx-auto">
+                <button onclick="approveSubscription('${sub.id}', '${sub.store_id || ''}', '${sub.plan_type}')" class="bg-brand-600 hover:bg-brand-500 text-white font-sans font-bold px-3 py-1.5 rounded-lg text-xs transition shadow flex items-center gap-1.5 mx-auto">
                   <i class="fa-solid fa-check"></i> اعتماد وتفعيل
                 </button>
               ` : `
@@ -790,95 +860,122 @@
     }
 
     // Direct Approval of Subscription
-    async function approveSubscription(subscriptionId, phone, plan) {
-      if (!confirm(`هل أنت متأكد من اعتماد التحويل وتفعيل الترخيص لرقم (${phone})؟`)) return;
+    async function approveSubscription(subscriptionId, storeId, planType) {
+      if (!confirm(`هل أنت متأكد من اعتماد التحويل وتفعيل الترخيص؟`)) return;
 
-      const client = getSupabase();
-      if (!client) {
-        alert('فشل الاتصال بقاعدة البيانات.');
-        return;
-      }
+      const days = planType === 'annual' ? 365 : 30;
+      const expiryDate = new Date(Date.now() + days * 24 * 3600 * 1000).toISOString();
 
       try {
-        await client
-          .from('subscriptions')
-          .update({ status: 'active', approved_at: new Date().toISOString() })
-          .eq('id', subscriptionId);
+        // 1. Update subscription status
+        await directSupabaseFetch(`subscriptions?id=eq.${subscriptionId}`, 'PATCH', {
+          status: 'active'
+        });
 
-        const days = plan === 'annual' ? 365 : 30;
-        const expiryDate = new Date(Date.now() + days * 24 * 3600 * 1000).toISOString();
-
-        await client
-          .from('stores')
-          .update({ status: 'active', trial_expiry: expiryDate })
-          .eq('phone', phone);
+        // 2. Update store if storeId exists
+        if (storeId) {
+          await directSupabaseFetch(`stores?id=eq.${storeId}`, 'PATCH', {
+            status: 'active',
+            subscription_type: planType,
+            subscription_ends_at: expiryDate
+          });
+        }
 
         alert('تم اعتماد التحويل وتفعيل المتجر بنجاح في Supabase!');
-        loadDataFromSupabase();
+        await loadDataFromSupabase();
       } catch (err) {
-        console.error('Approval error:', err);
+        console.error('[CASHDAR] Approval error:', err);
         alert('حدث خطأ أثناء اعتماد الطلب في Supabase.');
       }
     }
 
-    function quickActivateStore(phone) {
-      const manualPhoneInput = document.getElementById('manual-phone');
-      if (manualPhoneInput) manualPhoneInput.value = phone;
+    // Extend Trial Hours
+    async function extendTrialHours(storeId, hours) {
+      try {
+        const store = allStores.find(s => s.id === storeId);
+        const currentEnds = store && store.trial_ends_at ? new Date(store.trial_ends_at).getTime() : Date.now();
+        const base = currentEnds > Date.now() ? currentEnds : Date.now();
+        const newExpiry = new Date(base + hours * 3600 * 1000).toISOString();
+
+        await directSupabaseFetch(`stores?id=eq.${storeId}`, 'PATCH', {
+          status: 'trial',
+          trial_ends_at: newExpiry
+        });
+
+        alert(`تم تمديد فترة التجربة بمقدار ${hours} ساعة بنجاح!`);
+        await loadDataFromSupabase();
+      } catch (err) {
+        console.error('[CASHDAR] Extend trial error:', err);
+        alert('حدث خطأ أثناء تمديد الفترة التجريبية.');
+      }
+    }
+
+    function quickActivateStore(storeId, storeName, phone) {
+      const nameInput = document.getElementById('manual-store-name');
+      const phoneInput = document.getElementById('manual-phone');
+      if (nameInput) nameInput.value = storeName || '';
+      if (phoneInput) phoneInput.value = phone || '';
       switchTab('manual');
     }
 
+    // Handle Manual Activation Form
     async function handleManualActivation(e) {
       if (e) e.preventDefault();
 
+      const storeName = document.getElementById('manual-store-name').value.trim();
+      const ownerName = document.getElementById('manual-owner-name').value.trim();
       const phone = document.getElementById('manual-phone').value.trim();
       const plan = document.getElementById('manual-plan').value;
       const days = Number(document.getElementById('manual-days').value) || 30;
       const btn = document.getElementById('manual-submit-btn');
 
-      if (!phone) {
-        alert('يرجى إدخال رقم الهاتف.');
-        return;
-      }
-
-      const client = getSupabase();
-      if (!client) {
-        alert('فشل الاتصال بقاعدة البيانات.');
+      if (!storeName || !phone) {
+        alert('يرجى إدخال اسم المتجر ورقم الهاتف.');
         return;
       }
 
       btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري التفعيل في Supabase...';
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ في Supabase...';
 
       try {
+        const isTrial = plan === 'trial_extend';
         const expiryDate = new Date(Date.now() + days * 24 * 3600 * 1000).toISOString();
-        const status = plan === 'trial_extend' ? 'trial' : 'active';
 
-        await client.from('stores').upsert({
+        const payload = {
+          store_name: storeName,
+          owner_name: ownerName || 'مالك المتجر',
           phone: phone,
-          status: status,
-          trial_expiry: expiryDate,
-          created_at: new Date().toISOString()
-        }, { onConflict: 'phone' });
+          status: isTrial ? 'trial' : 'active',
+          trial_ends_at: isTrial ? expiryDate : new Date(Date.now() + 72 * 3600 * 1000).toISOString(),
+          subscription_type: isTrial ? null : plan,
+          subscription_ends_at: isTrial ? null : expiryDate
+        };
 
-        if (status === 'active') {
-          await client.from('subscriptions').insert([{
-            phone: phone,
-            plan: plan,
-            amount: plan === 'annual' ? 500000 : 50000,
-            account_transferred_to: '59189',
-            status: 'active',
-            last_4_digits: 'MANUAL',
-            created_at: new Date().toISOString()
-          }]);
+        // Upsert store directly in Supabase
+        const savedStore = await directSupabaseFetch('stores', 'POST', payload);
+        const storeId = Array.isArray(savedStore) && savedStore[0] ? savedStore[0].id : null;
+
+        // If active subscription, also record in subscriptions table
+        if (!isTrial) {
+          await directSupabaseFetch('subscriptions', 'POST', {
+            store_id: storeId,
+            store_name: storeName,
+            plan_type: plan,
+            receipt_last_4_digits: 'MANUAL',
+            status: 'active'
+          });
         }
 
-        alert(`تم تفعيل المتجر (${phone}) بنجاح!`);
+        alert(`تم تفعيل المتجر (${storeName}) بنجاح في Supabase!`);
+        document.getElementById('manual-store-name').value = '';
+        document.getElementById('manual-owner-name').value = '';
         document.getElementById('manual-phone').value = '';
-        loadDataFromSupabase();
+
+        await loadDataFromSupabase();
         switchTab('stores');
       } catch (err) {
-        console.error('Manual activation error:', err);
-        alert('حدث خطأ أثناء التفعيل في Supabase.');
+        console.error('[CASHDAR] Manual activation error:', err);
+        alert('حدث خطأ أثناء التفعيل في Supabase: ' + err.message);
       } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-check-double"></i> تفعيل المتجر فورياً في Supabase';
@@ -913,7 +1010,6 @@
       const mainContent = document.getElementById('mainContent');
       if (loginModal) loginModal.style.display = 'none';
       if (mainContent) mainContent.style.display = 'block';
-      getSupabase();
       loadDataFromSupabase();
     }
   </script>
