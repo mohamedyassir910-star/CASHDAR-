@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>كاشدار CASHDAR - نظام إدارة المتاجر ونقاط البيع</title>
+  <title>كاشدار CASHDAR - نظام نقاط البيع وإدارة الموظفين</title>
   
   <!-- 1. Supabase JS Client v2 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -15,7 +15,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <script>
@@ -24,6 +24,7 @@
         extend: {
           fontFamily: {
             sans: ['Tajawal', 'sans-serif'],
+            mono: ['Courier Prime', 'monospace'],
           },
           colors: {
             brand: {
@@ -76,16 +77,8 @@
       background: #cbd5e1;
       border-radius: 9999px;
     }
-    @media print {
-      body * { visibility: hidden; }
-      #printable-receipt, #printable-receipt * { visibility: visible; }
-      #printable-receipt {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 80mm;
-      }
-    }
+
+    /* Barcode Scanner Region */
     #qr-reader {
       width: 100% !important;
       border: none !important;
@@ -97,6 +90,7 @@
       border-radius: 1rem;
       object-fit: cover !important;
     }
+
     /* Responsive Table Styles */
     .table-container-responsive {
       width: 100%;
@@ -112,6 +106,7 @@
       width: 100%;
       min-width: 580px;
     }
+
     /* Safe Bottom Navigation Spacing */
     .safe-bottom-padding {
       padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 16px));
@@ -119,6 +114,50 @@
     @media (min-width: 768px) {
       .safe-bottom-padding {
         padding-bottom: 1.5rem;
+      }
+    }
+
+    /* ========================================= */
+    /* THERMAL RECEIPT PRINTING STYLES (58 & 80) */
+    /* ========================================= */
+    @media print {
+      @page {
+        margin: 0;
+        size: auto;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      body * {
+        visibility: hidden !important;
+      }
+      #printable-receipt, #printable-receipt * {
+        visibility: visible !important;
+      }
+      #printable-receipt {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 80mm;
+        max-width: 80mm;
+        margin: 0;
+        padding: 5mm;
+        background: #ffffff !important;
+        color: #000000 !important;
+        box-shadow: none !important;
+        border: none !important;
+        font-family: 'Courier Prime', Courier, monospace !important;
+        font-size: 12px;
+        line-height: 1.35;
+      }
+      body.paper-58mm #printable-receipt {
+        width: 58mm !important;
+        max-width: 58mm !important;
+        padding: 3mm !important;
+        font-size: 10px !important;
       }
     }
   </style>
@@ -146,7 +185,7 @@
       return sbClient;
     }
 
-    // 2. Application State (Starts 100% Clean: 0 products, 0 sales, 0 expenses)
+    // 2. Application State & Storage
     const AppState = {
       merchant: {
         storeName: '',
@@ -164,15 +203,34 @@
       branches: [
         { id: 'branch-main', name: 'الفرع الرئيسي', location: 'المقر الأساسي' }
       ],
+      // Current Logged-in User Session
       currentUser: {
         id: 'user-admin',
         name: 'المالك (المدير العام)',
-        role: 'admin',
+        username: 'admin',
+        role: 'admin', // 'admin', 'supervisor', 'cashier'
         branchId: 'branch-main',
-        pin: ''
+        permissions: {
+          canViewReports: true,
+          canManageInventory: true,
+          canAddExpenses: true
+        }
       },
+      // Registered Employees List
       employees: [
-        { id: 'user-admin', name: 'المالك (المدير العام)', role: 'admin', branchId: 'branch-main', pin: '' }
+        {
+          id: 'user-admin',
+          name: 'المالك (المدير العام)',
+          username: 'admin',
+          password: '123',
+          role: 'admin',
+          branchId: 'branch-main',
+          permissions: {
+            canViewReports: true,
+            canManageInventory: true,
+            canAddExpenses: true
+          }
+        }
       ],
       products: [],
       cart: [],
@@ -183,6 +241,8 @@
 
     let selectedSubscriptionPlan = 'monthly';
     let html5QrCodeScannerInstance = null;
+    let thermalPaperWidth = '80mm'; // 80mm or 58mm
+    let lastRenderedSale = null;
 
     // 3. Audio Beep Tone Generator
     function playBarcodeBeep() {
@@ -269,19 +329,25 @@
         addToCart(match.id);
         alert("تمت قراءة الباركود وإضافة المنتج للسلة: " + match.name);
       } else {
-        const createNow = confirm("لم يتم العثور على صنف بالرمز (" + barcode + "). هل ترغب في تسجيل صنف جديد بهذا الباركود؟");
-        if (createNow) {
-          openAddProductModal();
-          const barcodeInput = document.getElementById('p-barcode');
-          if (barcodeInput) barcodeInput.value = barcode;
+        const canManageInv = AppState.currentUser.permissions && AppState.currentUser.permissions.canManageInventory;
+        if (canManageInv) {
+          const createNow = confirm("لم يتم العثور على صنف بالرمز (" + barcode + "). هل ترغب في تسجيل صنف جديد بهذا الباركود؟");
+          if (createNow) {
+            openAddProductModal();
+            const barcodeInput = document.getElementById('p-barcode');
+            if (barcodeInput) barcodeInput.value = barcode;
+          }
+        } else {
+          alert("لم يتم العثور على صنف بالرمز (" + barcode + ").");
         }
       }
     }
 
-    // 5. Local Storage Persistence
+    // 5. Local Storage Persistence & Session
     function saveState() {
       try {
-        localStorage.setItem('cashdar_pos_v3', JSON.stringify(AppState));
+        localStorage.setItem('cashdar_pos_v4', JSON.stringify(AppState));
+        localStorage.setItem('cashdar_current_user', JSON.stringify(AppState.currentUser));
       } catch (e) {
         console.warn("Storage write error", e);
       }
@@ -289,13 +355,30 @@
 
     function loadState() {
       try {
-        const raw = localStorage.getItem('cashdar_pos_v3') || localStorage.getItem('cashdar_state_v2') || localStorage.getItem('cashdar_state_v1');
+        const raw = localStorage.getItem('cashdar_pos_v4') || localStorage.getItem('cashdar_pos_v3') || localStorage.getItem('cashdar_state_v2');
         if (raw) {
           const parsed = JSON.parse(raw);
           Object.assign(AppState, parsed);
         }
+        const savedUser = localStorage.getItem('cashdar_current_user');
+        if (savedUser) {
+          AppState.currentUser = JSON.parse(savedUser);
+        }
       } catch (e) {
         console.error("Storage load error", e);
+      }
+
+      // Ensure Admin exists in employees
+      if (!AppState.employees || AppState.employees.length === 0) {
+        AppState.employees = [{
+          id: 'user-admin',
+          name: 'المالك (المدير العام)',
+          username: 'admin',
+          password: '123',
+          role: 'admin',
+          branchId: 'branch-main',
+          permissions: { canViewReports: true, canManageInventory: true, canAddExpenses: true }
+        }];
       }
 
       if (!AppState.merchant.trialStartedAt) {
@@ -328,10 +411,77 @@
       }
     }
 
-    // 7. Navigation Operations
+    // 7. Role & Permission Management Engine
+    function applyPermissions() {
+      const perms = AppState.currentUser.permissions || {
+        canViewReports: AppState.currentUser.role === 'admin',
+        canManageInventory: AppState.currentUser.role === 'admin' || AppState.currentUser.role === 'supervisor',
+        canAddExpenses: AppState.currentUser.role === 'admin' || AppState.currentUser.role === 'supervisor'
+      };
+
+      const isAdmin = AppState.currentUser.role === 'admin';
+
+      // 1. Reports Visibility
+      const repNav = document.getElementById('nav-reports');
+      const repMob = document.getElementById('mob-nav-reports');
+      if (repNav) repNav.style.display = perms.canViewReports ? 'flex' : 'none';
+      if (repMob) repMob.style.display = perms.canViewReports ? 'flex' : 'none';
+
+      // 2. Inventory / Products Visibility
+      const prodNav = document.getElementById('nav-products');
+      const prodMob = document.getElementById('mob-nav-products');
+      if (prodNav) prodNav.style.display = perms.canManageInventory ? 'flex' : 'none';
+      if (prodMob) prodMob.style.display = perms.canManageInventory ? 'flex' : 'none';
+      
+      const posAddBtn = document.getElementById('pos-add-product-btn');
+      if (posAddBtn) posAddBtn.style.display = perms.canManageInventory ? 'flex' : 'none';
+
+      // 3. Expenses Visibility
+      const expNav = document.getElementById('nav-expenses');
+      const expMob = document.getElementById('mob-nav-expenses');
+      if (expNav) expNav.style.display = perms.canAddExpenses ? 'flex' : 'none';
+      if (expMob) expMob.style.display = perms.canAddExpenses ? 'flex' : 'none';
+
+      // 4. Admin Only: Branches & Employee Management
+      const branchNav = document.getElementById('nav-branches');
+      if (branchNav) branchNav.style.display = isAdmin ? 'flex' : 'none';
+
+      const empNav = document.getElementById('nav-employees');
+      if (empNav) empNav.style.display = isAdmin ? 'flex' : 'none';
+
+      const settingsEmpTab = document.getElementById('settings-tab-employees');
+      if (settingsEmpTab) settingsEmpTab.style.display = isAdmin ? 'block' : 'none';
+
+      // If active screen is prohibited, redirect to POS
+      const currentActiveScreen = document.querySelector('.screen-content:not(.hidden)');
+      if (currentActiveScreen) {
+        const id = currentActiveScreen.id.replace('screen-', '');
+        if (id === 'reports' && !perms.canViewReports) navigateTo('pos');
+        if (id === 'products' && !perms.canManageInventory) navigateTo('pos');
+        if (id === 'expenses' && !perms.canAddExpenses) navigateTo('pos');
+        if ((id === 'branches' || id === 'employees') && !isAdmin) navigateTo('pos');
+      }
+    }
+
+    // 8. Navigation Operations
     function navigateTo(screenId) {
-      if (AppState.currentUser.role === 'cashier' && ['expenses', 'reports', 'branches', 'employees'].includes(screenId)) {
-        alert("عذراً! حساب الكاشير لا يملك صلاحية الاطلاع على المصروفات أو أرباح وتقارير المتجر.");
+      const perms = AppState.currentUser.permissions || {};
+      const isAdmin = AppState.currentUser.role === 'admin';
+
+      if (screenId === 'reports' && !perms.canViewReports) {
+        alert("عذراً! حسابك لا يملك صلاحية الاطلاع على الأرباح والتقارير.");
+        return;
+      }
+      if (screenId === 'products' && !perms.canManageInventory) {
+        alert("عذراً! حسابك لا يملك صلاحية إدارة المخزون والمنتجات.");
+        return;
+      }
+      if (screenId === 'expenses' && !perms.canAddExpenses) {
+        alert("عذراً! حسابك لا يملك صلاحية إضافة وتسجيل المصروفات.");
+        return;
+      }
+      if (['branches', 'employees'].includes(screenId) && !isAdmin) {
+        alert("عذراً! هذا القسم مخصص لمدير المتجر فقط.");
         return;
       }
 
@@ -348,13 +498,13 @@
 
       // Sidebar active states
       document.querySelectorAll('.nav-item').forEach(el => {
-        el.classList.remove('bg-brand-600', 'text-white', 'shadow-sm');
+        el.classList.remove('bg-brand-600', 'text-white', 'shadow-xs');
         el.classList.add('text-slate-600', 'hover:bg-slate-100');
       });
       const activeNav = document.getElementById('nav-' + screenId);
       if (activeNav) {
         activeNav.classList.remove('text-slate-600', 'hover:bg-slate-100');
-        activeNav.classList.add('bg-brand-600', 'text-white', 'shadow-sm');
+        activeNav.classList.add('bg-brand-600', 'text-white', 'shadow-xs');
       }
 
       // Bottom bar active states (mobile)
@@ -368,7 +518,6 @@
         activeMobile.classList.add('text-brand-600', 'font-black');
       }
 
-      // Scroll to top of window on mobile switch
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
       if (screenId === 'pos') renderPosProducts();
@@ -389,16 +538,14 @@
       if (storeElem) storeElem.innerText = AppState.merchant.storeName || 'يرجى تسجيل اسم المحل';
       if (branchElem) branchElem.innerText = currentBranch ? currentBranch.name : 'الفرع الرئيسي';
       if (userElem) {
-        userElem.innerText = AppState.currentUser.name + ' (' + (AppState.currentUser.role === 'cashier' ? 'كاشير' : 'مدير') + ')';
+        const roleLabel = AppState.currentUser.role === 'admin' ? 'مدير' : AppState.currentUser.role === 'supervisor' ? 'مشرف' : 'كاشير';
+        userElem.innerText = AppState.currentUser.name + ' (' + roleLabel + ')';
       }
 
-      const mgrGroup = document.getElementById('manager-nav-group');
-      if (mgrGroup) {
-        mgrGroup.style.display = AppState.currentUser.role === 'cashier' ? 'none' : 'block';
-      }
+      applyPermissions();
     }
 
-    // 8. 72-Hour Trial Countdown
+    // 9. 72-Hour Trial Countdown
     function initTrialCountdown() {
       setInterval(updateTrialDisplay, 1000);
       updateTrialDisplay();
@@ -446,7 +593,7 @@
       }
     }
 
-    // 9. Background Async Supabase Operations
+    // 10. Background Async Supabase Operations
     async function syncStoreToSupabaseBackground() {
       const client = getSupabase();
       if (!client || !AppState.merchant.phone) return;
@@ -493,7 +640,7 @@
       } catch (e) {}
     }
 
-    // 10. POS Cart & Products Management
+    // 11. POS Cart & Products Management
     function renderPosProducts() {
       const grid = document.getElementById('pos-products-grid');
       const searchInput = document.getElementById('pos-search');
@@ -653,6 +800,7 @@
         timestamp: new Date().toISOString(),
         branchId: AppState.currentBranchId,
         cashier: AppState.currentUser.name,
+        cashierUsername: AppState.currentUser.username,
         items: [...AppState.cart],
         subtotal: subtotal,
         discount: discount,
@@ -677,7 +825,63 @@
       renderPosProducts();
     }
 
+    // ==========================================
+    // 12. Thermal Printing & Receipt Generator
+    // ==========================================
+    function setThermalPaperSize(size) {
+      thermalPaperWidth = size;
+      const b80 = document.getElementById('paper-btn-80');
+      const b58 = document.getElementById('paper-btn-58');
+      if (size === '80mm') {
+        document.body.classList.remove('paper-58mm');
+        if (b80) b80.className = 'px-3 py-1 text-xs font-bold rounded-lg bg-brand-600 text-white shadow-xs';
+        if (b58) b58.className = 'px-3 py-1 text-xs font-bold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200';
+      } else {
+        document.body.classList.add('paper-58mm');
+        if (b58) b58.className = 'px-3 py-1 text-xs font-bold rounded-lg bg-brand-600 text-white shadow-xs';
+        if (b80) b80.className = 'px-3 py-1 text-xs font-bold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200';
+      }
+    }
+
+    function printThermalReceipt() {
+      window.print();
+    }
+
+    function copyReceiptText() {
+      if (!lastRenderedSale) return;
+      const s = lastRenderedSale;
+      const dateStr = new Date(s.timestamp).toLocaleString('ar-EG');
+      const branch = AppState.branches.find(b => b.id === s.branchId);
+
+      let text = `================================\n`;
+      text += `       ${AppState.merchant.storeName || 'كاشدار - نقطة البيع'}\n`;
+      text += `   ${branch ? branch.name : 'الفرع الرئيسي'} - هاتف: ${AppState.merchant.phone || ''}\n`;
+      text += `================================\n`;
+      text += `فاتورة: ${s.invoiceNumber}\nالتاريخ: ${dateStr}\nالكاشير: ${s.cashier}\n`;
+      text += `--------------------------------\n`;
+      text += `الصنف           الكمية    الإجمالي\n`;
+      text += `--------------------------------\n`;
+      s.items.forEach(it => {
+        text += `${it.name.padEnd(16).slice(0, 16)} ${String(it.qty).padEnd(4)} ${(it.qty * it.price).toLocaleString()} ج\n`;
+      });
+      text += `--------------------------------\n`;
+      text += `المجموع: ${s.subtotal.toLocaleString()} جنيه\n`;
+      if (s.discount > 0) text += `الخصم: -${s.discount.toLocaleString()} جنيه\n`;
+      text += `الإجمالي المطلوب: ${s.total.toLocaleString()} جنيه\n`;
+      text += `طريقة الدفع: ${s.paymentMethod === 'cash' ? 'كاش نقداً' : s.paymentMethod === 'bank' ? 'بنكك' : 'آجل'}\n`;
+      text += `================================\n`;
+      text += `    شكراً لتسوقكم - كاشدار CASHDAR\n`;
+      text += `================================\n`;
+
+      navigator.clipboard.writeText(text).then(() => {
+        alert("تم نسخ نص الفاتورة بصيغة الطابعة الحرارية (Raw Thermal Text)!");
+      }).catch(() => {
+        alert("تعذر النسخ التلقائي.");
+      });
+    }
+
     function showReceipt(sale) {
+      lastRenderedSale = sale;
       const receiptElem = document.getElementById('printable-receipt');
       if (!receiptElem) return;
 
@@ -685,60 +889,74 @@
       const branch = AppState.branches.find(b => b.id === sale.branchId);
 
       receiptElem.innerHTML = `
-        <div class="text-center pb-2 border-b border-dashed border-slate-400">
-          <h2 class="font-black text-sm text-slate-900">${AppState.merchant.storeName || 'كاشدار - نقطة البيع'}</h2>
-          <div class="text-[11px] text-slate-600">${branch ? branch.name : 'الفرع الرئيسي'}</div>
-          <div class="text-[10px] text-slate-500 font-mono">${AppState.merchant.phone || ''}</div>
-          <div class="text-[10px] font-mono mt-1 text-slate-500">فاتورة رقم: <b>${sale.invoiceNumber}</b></div>
-          <div class="text-[10px] text-slate-400">${dateStr}</div>
+        <div style="text-align: center; border-bottom: 1px dashed #475569; padding-bottom: 6px; margin-bottom: 6px;">
+          <h2 style="font-weight: 900; font-size: 15px; margin: 0 0 3px 0;">${AppState.merchant.storeName || 'كاشدار - نقطة البيع'}</h2>
+          <div style="font-size: 11px; color: #334155;">${branch ? branch.name : 'الفرع الرئيسي'}</div>
+          <div style="font-size: 11px; font-family: monospace; color: #475569;">هاتف: ${AppState.merchant.phone || '-'}</div>
+          <div style="font-size: 11px; margin-top: 4px; font-family: monospace;">فاتورة رقم: <b>${sale.invoiceNumber}</b></div>
+          <div style="font-size: 10px; color: #64748b;">${dateStr}</div>
         </div>
 
-        <div class="py-2 border-b border-dashed border-slate-400 space-y-1">
-          ${sale.items.map(it => `
-            <div class="flex justify-between items-center text-[11px]">
-              <div>
-                <span>${it.name}</span>
-                <span class="text-[10px] text-slate-500">(${it.qty} × ${it.price})</span>
-              </div>
-              <span class="font-bold">${(it.qty * it.price).toLocaleString()}</span>
-            </div>
-          `).join('')}
+        <div style="border-bottom: 1px dashed #475569; padding-bottom: 6px; margin-bottom: 6px;">
+          <table style="width: 100%; font-size: 11px; text-align: right; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 1px solid #cbd5e1; font-weight: bold;">
+                <th style="padding: 2px 0;">الصنف</th>
+                <th style="text-align: center; padding: 2px 0;">كمية</th>
+                <th style="text-align: left; padding: 2px 0;">المجموع</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sale.items.map(it => `
+                <tr>
+                  <td style="padding: 3px 0; max-width: 130px; word-break: break-word;">${it.name}</td>
+                  <td style="text-align: center; padding: 3px 0; font-family: monospace;">${it.qty}</td>
+                  <td style="text-align: left; padding: 3px 0; font-family: monospace; font-weight: bold;">${(it.qty * it.price).toLocaleString()}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
         </div>
 
-        <div class="pt-2 text-[11px] space-y-1">
-          <div class="flex justify-between">
-            <span>المجموع:</span>
-            <span>${sale.subtotal.toLocaleString()} جنيه</span>
+        <div style="font-size: 11px; line-height: 1.5; padding-bottom: 6px;">
+          <div style="display: flex; justify-content: space-between;">
+            <span>المجموع الفرعي:</span>
+            <span style="font-family: monospace; font-weight: bold;">${sale.subtotal.toLocaleString()} جنيه</span>
           </div>
           ${sale.discount > 0 ? `
-          <div class="flex justify-between text-rose-600">
-            <span>خصم:</span>
-            <span>-${sale.discount.toLocaleString()} جنيه</span>
+          <div style="display: flex; justify-content: space-between; color: #e11d48;">
+            <span>الخصم الممنوح:</span>
+            <span style="font-family: monospace; font-weight: bold;">-${sale.discount.toLocaleString()} جنيه</span>
           </div>` : ''}
-          <div class="flex justify-between font-black text-sm pt-1 border-t border-slate-300">
-            <span>الإجمالي المدفوع:</span>
-            <span>${sale.total.toLocaleString()} جنيه</span>
+          <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 900; border-top: 1px solid #000; padding-top: 3px; margin-top: 3px;">
+            <span>الإجمالي الصافي:</span>
+            <span style="font-family: monospace;">${sale.total.toLocaleString()} جنيه</span>
           </div>
-          <div class="flex justify-between text-[10px] text-slate-500 pt-1">
-            <span>طريقة السداد:</span>
+          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #475569; margin-top: 4px;">
+            <span>طريقة الدفع:</span>
             <span>${sale.paymentMethod === 'cash' ? 'كاش نقداً' : sale.paymentMethod === 'bank' ? 'بنكك' : 'آجل'}</span>
           </div>
-          <div class="flex justify-between text-[10px] text-slate-500">
+          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #475569;">
             <span>الكاشير:</span>
             <span>${sale.cashier}</span>
           </div>
         </div>
 
-        <div class="text-center text-[10px] text-slate-400 pt-2 border-t border-dashed border-slate-300">
-          شكراً لتسوقكم - نظام كاشدار CASHDAR
+        <div style="text-align: center; font-size: 10px; color: #64748b; border-top: 1px dashed #475569; padding-top: 6px; margin-top: 4px;">
+          شكراً لتعاملكم معنا - نظام كاشدار CASHDAR
         </div>
       `;
 
       openModal('receipt-modal');
     }
 
-    // 11. Product Management
+    // 13. Products Management
     function openAddProductModal() {
+      const perms = AppState.currentUser.permissions || {};
+      if (!perms.canManageInventory) {
+        alert("عذراً! حسابك لا يملك صلاحية إدارة المخزون أو إضافة المنتجات.");
+        return;
+      }
       openModal('product-modal');
       document.getElementById('p-name').value = '';
       document.getElementById('p-barcode').value = '';
@@ -754,6 +972,12 @@
 
     function saveProduct(e) {
       if (e) e.preventDefault();
+      const perms = AppState.currentUser.permissions || {};
+      if (!perms.canManageInventory) {
+        alert("عذراً! حسابك لا يملك صلاحية إدارة المخزون.");
+        return;
+      }
+
       const name = document.getElementById('p-name').value.trim();
       const barcode = document.getElementById('p-barcode').value.trim();
       const unit = document.getElementById('p-unit').value;
@@ -791,6 +1015,8 @@
         return;
       }
 
+      const canManage = AppState.currentUser.permissions && AppState.currentUser.permissions.canManageInventory;
+
       tbody.innerHTML = AppState.products.map(p => `
         <tr class="hover:bg-slate-50 transition border-b border-slate-100">
           <td class="p-3 font-bold text-slate-800">${p.name}</td>
@@ -800,15 +1026,22 @@
           <td class="p-3 font-mono font-bold text-brand-700">${Number(p.price).toLocaleString()}</td>
           <td class="p-3 font-bold font-mono ${p.stock <= 3 ? 'text-rose-600' : 'text-slate-700'}">${p.stock}</td>
           <td class="p-3 text-center">
-            <button onclick="deleteProduct('${p.id}')" class="text-rose-500 hover:text-rose-700 p-1.5" title="حذف">
-              <i class="fa-solid fa-trash-can pointer-events-none"></i>
-            </button>
+            ${canManage ? `
+              <button onclick="deleteProduct('${p.id}')" class="text-rose-500 hover:text-rose-700 p-1.5" title="حذف">
+                <i class="fa-solid fa-trash-can pointer-events-none"></i>
+              </button>
+            ` : '<span class="text-slate-300">-</span>'}
           </td>
         </tr>
       `).join('');
     }
 
     function deleteProduct(id) {
+      const perms = AppState.currentUser.permissions || {};
+      if (!perms.canManageInventory) {
+        alert("عذراً! لا تملك صلاحية حذف المنتجات.");
+        return;
+      }
       if (confirm("هل أنت متأكد من حذف هذا المنتج؟")) {
         AppState.products = AppState.products.filter(p => p.id !== id);
         saveState();
@@ -817,8 +1050,13 @@
       }
     }
 
-    // 12. Expenses Management
+    // 14. Expenses Management
     function openAddExpenseModal() {
+      const perms = AppState.currentUser.permissions || {};
+      if (!perms.canAddExpenses) {
+        alert("عذراً! حسابك لا يملك صلاحية تسجيل المصروفات.");
+        return;
+      }
       openModal('expense-modal');
       document.getElementById('e-amount').value = '';
       document.getElementById('e-note').value = '';
@@ -826,6 +1064,12 @@
 
     function saveExpense(e) {
       if (e) e.preventDefault();
+      const perms = AppState.currentUser.permissions || {};
+      if (!perms.canAddExpenses) {
+        alert("عذراً! حسابك لا يملك صلاحية تسجيل المصروفات.");
+        return;
+      }
+
       const category = document.getElementById('e-category').value;
       const amount = Number(document.getElementById('e-amount').value) || 0;
       const note = document.getElementById('e-note').value.trim();
@@ -880,15 +1124,21 @@
           <td class="p-3 font-mono font-black text-rose-600">${e.amount.toLocaleString()}</td>
           <td class="p-3 text-slate-500">${e.employeeName}</td>
           <td class="p-3 text-center">
-            <button onclick="deleteExpense('${e.id}')" class="text-rose-400 hover:text-rose-600 p-1.5">
-              <i class="fa-solid fa-trash-can pointer-events-none"></i>
-            </button>
+            ${AppState.currentUser.role === 'admin' ? `
+              <button onclick="deleteExpense('${e.id}')" class="text-rose-400 hover:text-rose-600 p-1.5">
+                <i class="fa-solid fa-trash-can pointer-events-none"></i>
+              </button>
+            ` : '<span class="text-slate-300">-</span>'}
           </td>
         </tr>
       `).join('');
     }
 
     function deleteExpense(id) {
+      if (AppState.currentUser.role !== 'admin') {
+        alert("حذف المصروف متاح للمدير العام فقط.");
+        return;
+      }
       if (confirm("هل تريد حذف هذا القيد؟")) {
         AppState.expenses = AppState.expenses.filter(e => e.id !== id);
         saveState();
@@ -896,8 +1146,15 @@
       }
     }
 
-    // 13. Reports & Profits
+    // 15. Reports & Profits
     function renderReports() {
+      const perms = AppState.currentUser.permissions || {};
+      if (!perms.canViewReports) {
+        alert("عذراً! حسابك لا يملك صلاحية عرض التقارير والأرباح.");
+        navigateTo('pos');
+        return;
+      }
+
       const totalSales = AppState.sales.reduce((sum, s) => sum + s.total, 0);
       const totalCost = AppState.sales.reduce((sum, s) => sum + (s.totalCost || 0), 0);
       const totalExpenses = AppState.expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -934,8 +1191,12 @@
       `).join('');
     }
 
-    // 14. Branches Management
+    // 16. Branches Management
     function openAddBranchModal() {
+      if (AppState.currentUser.role !== 'admin') {
+        alert("إدارة الفروع مخصصة للمدير العام فقط.");
+        return;
+      }
       openModal('branch-modal');
       document.getElementById('b-name').value = '';
       document.getElementById('b-location').value = '';
@@ -1000,77 +1261,185 @@
       alert("تم تبديل الفرع بنجاح.");
     }
 
-    // 15. Employee Management
+    // ==========================================
+    // 17. Employee & Granular Permissions System
+    // ==========================================
     function openAddEmployeeModal() {
+      if (AppState.currentUser.role !== 'admin') {
+        alert("عذراً! إضافة وتعديل الموظفين مقتصر على المدير العام.");
+        return;
+      }
       openModal('employee-modal');
       document.getElementById('emp-name').value = '';
-      document.getElementById('emp-pin').value = '';
+      document.getElementById('emp-username').value = '';
+      document.getElementById('emp-password').value = '';
+      document.getElementById('emp-role').value = 'cashier';
+      updatePermissionCheckboxesByRole();
+      
       const bSelect = document.getElementById('emp-branch');
       bSelect.innerHTML = AppState.branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
     }
 
+    function updatePermissionCheckboxesByRole() {
+      const role = document.getElementById('emp-role').value;
+      const canReports = document.getElementById('perm-reports');
+      const canInventory = document.getElementById('perm-inventory');
+      const canExpenses = document.getElementById('perm-expenses');
+
+      if (role === 'admin') {
+        canReports.checked = true;
+        canInventory.checked = true;
+        canExpenses.checked = true;
+      } else if (role === 'supervisor') {
+        canReports.checked = true;
+        canInventory.checked = true;
+        canExpenses.checked = true;
+      } else {
+        // Cashier defaults
+        canReports.checked = false;
+        canInventory.checked = false;
+        canExpenses.checked = false;
+      }
+    }
+
     function saveEmployee(e) {
       if (e) e.preventDefault();
+      if (AppState.currentUser.role !== 'admin') {
+        alert("غير مسموح إلا للمدير العام.");
+        return;
+      }
+
       const name = document.getElementById('emp-name').value.trim();
+      const username = document.getElementById('emp-username').value.trim().toLowerCase();
+      const password = document.getElementById('emp-password').value.trim();
       const role = document.getElementById('emp-role').value;
       const branchId = document.getElementById('emp-branch').value;
-      const pin = document.getElementById('emp-pin').value.trim();
+
+      const canViewReports = document.getElementById('perm-reports').checked;
+      const canManageInventory = document.getElementById('perm-inventory').checked;
+      const canAddExpenses = document.getElementById('perm-expenses').checked;
+
+      if (!name || !username || !password) {
+        alert("يرجى ملء جميع الحقول المطلوبة (الاسم، اسم المستخدم، كلمة السر).");
+        return;
+      }
+
+      const existing = AppState.employees.find(emp => emp.username === username);
+      if (existing) {
+        alert("اسم المستخدم هذا موجود بالفعل! يرجى اختيار اسم مستخدم آخر.");
+        return;
+      }
 
       const newEmp = {
         id: 'emp_' + Date.now(),
         name: name,
+        username: username,
+        password: password,
         role: role,
         branchId: branchId,
-        pin: pin
+        permissions: {
+          canViewReports: role === 'admin' ? true : canViewReports,
+          canManageInventory: role === 'admin' ? true : canManageInventory,
+          canAddExpenses: role === 'admin' ? true : canAddExpenses
+        }
       };
 
       AppState.employees.push(newEmp);
       saveState();
       closeModal('employee-modal');
       renderEmployees();
-      alert("تمت إضافة الموظف بنجاح.");
+      alert("تم إنشاء حساب الموظف (" + name + ") وتعيين الصلاحيات بنجاح.");
+    }
+
+    function deleteEmployee(empId) {
+      if (AppState.currentUser.role !== 'admin') {
+        alert("عذراً! لا تملك صلاحية حذف الموظفين.");
+        return;
+      }
+      const emp = AppState.employees.find(e => e.id === empId);
+      if (!emp) return;
+      if (emp.role === 'admin' && AppState.employees.filter(e => e.role === 'admin').length <= 1) {
+        alert("لا يمكن حذف حساب المدير العام الرئيسي.");
+        return;
+      }
+      if (confirm("هل أنت متأكد من حذف حساب الموظف (" + emp.name + ")؟")) {
+        AppState.employees = AppState.employees.filter(e => e.id !== empId);
+        saveState();
+        renderEmployees();
+      }
     }
 
     function renderEmployees() {
       const container = document.getElementById('employees-list-cards');
       if (!container) return;
 
-      container.innerHTML = AppState.employees.map(emp => `
-        <div class="p-4 rounded-2xl border border-slate-200 bg-white space-y-2 shadow-xs">
-          <div class="flex items-center justify-between">
-            <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-              <i class="fa-solid fa-user-circle text-slate-400 text-lg"></i>
-              <span>${emp.name}</span>
-            </h4>
-            <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${emp.role === 'admin' ? 'bg-amber-100 text-amber-800' : emp.role === 'manager' ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'}">
-              ${emp.role === 'admin' ? 'المالك' : emp.role === 'manager' ? 'مدير فرع' : 'كاشير'}
-            </span>
+      container.innerHTML = AppState.employees.map(emp => {
+        const perms = emp.permissions || {};
+        const isCurrent = emp.id === AppState.currentUser.id;
+
+        return `
+          <div class="p-4 rounded-2xl border ${isCurrent ? 'border-brand-500 bg-brand-50/30' : 'border-slate-200 bg-white'} space-y-3 shadow-xs">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                  <i class="fa-solid fa-user-circle text-slate-400 text-lg"></i>
+                  <span>${emp.name}</span>
+                  ${isCurrent ? '<span class="text-[10px] bg-brand-100 text-brand-800 font-bold px-2 py-0.5 rounded-full">حسابك الحالي</span>' : ''}
+                </h4>
+                <div class="text-[11px] text-slate-400 font-mono mt-0.5">اسم الدخول: @${emp.username}</div>
+              </div>
+              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full ${emp.role === 'admin' ? 'bg-amber-100 text-amber-800' : emp.role === 'supervisor' ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'}">
+                ${emp.role === 'admin' ? 'المدير العام' : emp.role === 'supervisor' ? 'مشرف' : 'كاشير'}
+              </span>
+            </div>
+
+            <!-- Permissions badges -->
+            <div class="pt-2 border-t border-slate-100 flex flex-wrap gap-1 text-[10px]">
+              <span class="px-2 py-0.5 rounded-md ${perms.canViewReports ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200' : 'bg-slate-50 text-slate-400 line-through'}">
+                <i class="fa-solid ${perms.canViewReports ? 'fa-check' : 'fa-xmark'} ml-1"></i> التقارير والأرباح
+              </span>
+              <span class="px-2 py-0.5 rounded-md ${perms.canManageInventory ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200' : 'bg-slate-50 text-slate-400 line-through'}">
+                <i class="fa-solid ${perms.canManageInventory ? 'fa-check' : 'fa-xmark'} ml-1"></i> إدارة المخزون
+              </span>
+              <span class="px-2 py-0.5 rounded-md ${perms.canAddExpenses ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200' : 'bg-slate-50 text-slate-400 line-through'}">
+                <i class="fa-solid ${perms.canAddExpenses ? 'fa-check' : 'fa-xmark'} ml-1"></i> إضافة المصروفات
+              </span>
+            </div>
+
+            <div class="pt-2 flex justify-between items-center text-xs">
+              <span class="text-slate-400 text-[11px]">${(AppState.branches.find(b => b.id === emp.branchId) || {}).name || 'الفرع الرئيسي'}</span>
+              ${emp.role !== 'admin' ? `
+                <button onclick="deleteEmployee('${emp.id}')" class="text-rose-500 hover:text-rose-700 text-xs font-semibold flex items-center gap-1">
+                  <i class="fa-solid fa-trash-can"></i> حذف الموظف
+                </button>
+              ` : ''}
+            </div>
           </div>
-          <p class="text-xs text-slate-500">
-            الصلاحية: <b>${emp.role === 'cashier' ? 'مبيعات وفواتير فقط (محظور من الأرباح والمصروفات)' : 'إدارة شاملة للمحل'}</b>
-          </p>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
+    // 18. Switch User / Employee Login Modal
     function openSwitchUserModal() {
       openModal('switch-user-modal');
       const select = document.getElementById('switch-user-select');
       select.innerHTML = AppState.employees.map(emp => `
-        <option value="${emp.id}">${emp.name} (${emp.role === 'cashier' ? 'كاشير' : 'مدير'})</option>
+        <option value="${emp.id}" ${emp.id === AppState.currentUser.id ? 'selected' : ''}>
+          ${emp.name} (@${emp.username}) - ${emp.role === 'admin' ? 'مدير' : emp.role === 'supervisor' ? 'مشرف' : 'كاشير'}
+        </option>
       `).join('');
-      document.getElementById('switch-user-pin').value = '';
+      document.getElementById('switch-user-password').value = '';
     }
 
     function confirmUserSwitch() {
       const select = document.getElementById('switch-user-select');
-      const pinInput = document.getElementById('switch-user-pin').value.trim();
+      const passInput = document.getElementById('switch-user-password').value.trim();
       const emp = AppState.employees.find(e => e.id === select.value);
 
       if (!emp) return;
 
-      if (emp.pin && emp.pin !== pinInput) {
-        alert("رمز المرور PIN غير صحيح!");
+      if (emp.password && emp.password !== passInput) {
+        alert("كلمة المرور غير صحيحة! يرجى التحقق وإعادة المحاولة.");
         return;
       }
 
@@ -1078,17 +1447,43 @@
       saveState();
       closeModal('switch-user-modal');
       updateHeaderInfo();
+      applyPermissions();
       navigateTo('pos');
-      alert("تم تسجيل الدخول باسم: " + emp.name);
+      alert("تم تسجيل الدخول بنجاح باسم: " + emp.name + " (" + (emp.role === 'admin' ? 'مدير عام' : emp.role === 'supervisor' ? 'مشرف' : 'كاشير') + ")");
     }
 
-    // 16. Merchant Settings Form
+    // 19. Store Settings Navigation Tabs
+    function switchSettingsSubTab(tab) {
+      const storeSection = document.getElementById('settings-store-section');
+      const empSection = document.getElementById('settings-employees-section');
+      const bStore = document.getElementById('tab-btn-store');
+      const bEmp = document.getElementById('tab-btn-emp');
+
+      if (tab === 'store') {
+        storeSection.classList.remove('hidden');
+        empSection.classList.add('hidden');
+        bStore.className = 'flex-1 py-2 text-xs font-bold rounded-xl bg-brand-600 text-white shadow-xs';
+        bEmp.className = 'flex-1 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200';
+      } else {
+        if (AppState.currentUser.role !== 'admin') {
+          alert("إدارة الموظفين مخصصة للمدير العام فقط.");
+          return;
+        }
+        storeSection.classList.add('hidden');
+        empSection.classList.remove('hidden');
+        bEmp.className = 'flex-1 py-2 text-xs font-bold rounded-xl bg-brand-600 text-white shadow-xs';
+        bStore.className = 'flex-1 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200';
+        renderEmployees();
+      }
+    }
+
     function loadSettingsForm() {
       document.getElementById('setting-store-name').value = AppState.merchant.storeName || '';
       document.getElementById('setting-store-phone').value = AppState.merchant.phone || '';
       document.getElementById('setting-store-email').value = AppState.merchant.email || '';
       document.getElementById('setting-store-type').value = AppState.merchant.businessType || 'بقالة وسوبرماركت';
       document.getElementById('setting-store-address').value = AppState.merchant.address || '';
+      switchSettingsSubTab('store');
     }
 
     async function saveMerchantSettings(e) {
@@ -1126,7 +1521,7 @@
       } finally {
         if (btn) {
           btn.disabled = false;
-          btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> حفظ البيانات ومزامنة المتجر مع Supabase (تفعيل التجربة)';
+          btn.innerHTML = '<i class="fa-solid fa-floppy-disk pointer-events-none"></i> حفظ البيانات ومزامنة المتجر مع Supabase (تفعيل التجربة)';
         }
       }
 
@@ -1134,7 +1529,7 @@
       navigateTo('pos');
     }
 
-    // 17. Subscription Plan Selection & Payment Proof Submission (Bank 59189)
+    // 20. Subscription & Payment Notice (Account 59189)
     function selectPlan(plan) {
       selectedSubscriptionPlan = plan;
       const mCard = document.getElementById('plan-monthly-card');
@@ -1210,7 +1605,7 @@
         alert("تم تسجيل الطلب محلياً بنجاح وجاري المزامنة في الخلفية.");
       } finally {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> إرسال إشعار الدفع وحفظ الطلب في Supabase';
+        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane pointer-events-none"></i> إرسال إشعار الدفع وحفظ الطلب في Supabase';
       }
     }
 
@@ -1228,6 +1623,7 @@
       loadState();
       updateHeaderInfo();
       initTrialCountdown();
+      applyPermissions();
       navigateTo('pos');
       checkRemoteSubscriptionStatusBackground();
 
@@ -1274,7 +1670,7 @@
             <span id="active-branch-name" class="font-bold text-white">الفرع الرئيسي</span>
           </button>
 
-          <button onclick="openModal('switch-user-modal')" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 text-xs transition">
+          <button onclick="openSwitchUserModal()" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 text-xs transition">
             <i class="fa-solid fa-user-shield text-amber-400 pointer-events-none"></i>
             <span class="text-slate-400">المستخدم:</span>
             <span id="active-user-name" class="font-bold text-white">المالك (المدير العام)</span>
@@ -1295,7 +1691,7 @@
           </button>
 
           <!-- Switch User (Mobile icon) -->
-          <button onclick="openModal('switch-user-modal')" title="تبديل المستخدم" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition md:hidden">
+          <button onclick="openSwitchUserModal()" title="تبديل المستخدم والصلاحيات" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition md:hidden">
             <i class="fa-solid fa-users text-sm pointer-events-none"></i>
           </button>
         </div>
@@ -1331,18 +1727,18 @@
           <span>المخزون والمنتجات</span>
         </button>
 
-        <!-- Manager Restricted Section -->
+        <button onclick="navigateTo('expenses')" id="nav-expenses" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
+          <i class="fa-solid fa-receipt text-base w-5 text-center pointer-events-none"></i>
+          <span>المصروفات</span>
+        </button>
+
+        <button onclick="navigateTo('reports')" id="nav-reports" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
+          <i class="fa-solid fa-chart-line text-base w-5 text-center pointer-events-none"></i>
+          <span>التقارير والأرباح</span>
+        </button>
+
+        <!-- Admin Only Group -->
         <div id="manager-nav-group" class="space-y-1.5 pt-2 border-t border-slate-100">
-          <button onclick="navigateTo('expenses')" id="nav-expenses" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
-            <i class="fa-solid fa-receipt text-base w-5 text-center pointer-events-none"></i>
-            <span>المصروفات</span>
-          </button>
-
-          <button onclick="navigateTo('reports')" id="nav-reports" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
-            <i class="fa-solid fa-chart-line text-base w-5 text-center pointer-events-none"></i>
-            <span>التقارير والأرباح</span>
-          </button>
-
           <button onclick="navigateTo('branches')" id="nav-branches" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
             <i class="fa-solid fa-store text-base w-5 text-center pointer-events-none"></i>
             <span>إدارة الفروع</span>
@@ -1396,8 +1792,9 @@
                   <span class="inline">مسح 📷</span>
                 </button>
 
-                <!-- Add Product Button -->
+                <!-- Add Product Button (Controlled by canManageInventory permission) -->
                 <button 
+                  id="pos-add-product-btn"
                   onclick="openAddProductModal()" 
                   class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-sm transition active:scale-95 shrink-0" 
                   title="إضافة صنف جديد"
@@ -1639,10 +2036,10 @@
         <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div>
             <h2 class="text-base sm:text-lg font-bold text-slate-800">إدارة الموظفين والصلاحيات</h2>
-            <p class="text-[11px] sm:text-xs text-slate-500">حماية الأرباح: الكاشير لا يرى المصروفات ولا أرباح المتجر</p>
+            <p class="text-[11px] sm:text-xs text-slate-500">التحكم الدقيق في صلاحيات الكاشير والمشرفين لحماية أرباح ومخزون المحل</p>
           </div>
           <button onclick="openAddEmployeeModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs">
-            <i class="fa-solid fa-user-plus pointer-events-none"></i> إضافة موظف
+            <i class="fa-solid fa-user-plus pointer-events-none"></i> إضافة موظف جديد
           </button>
         </div>
         <div id="employees-list-cards" class="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
@@ -1651,53 +2048,91 @@
         <div class="h-16 md:hidden w-full shrink-0 pointer-events-none"></div>
       </div>
 
-      <!-- SCREEN 7: SETTINGS (بيانات التاجر) -->
+      <!-- SCREEN 7: SETTINGS (إعدادات المتجر وإدارة الموظفين) -->
       <div id="screen-settings" class="screen-content p-3 sm:p-5 hidden w-full">
         <div class="max-w-xl mx-auto space-y-4 w-full">
-          <div class="bg-brand-50 border border-brand-200 rounded-2xl p-3.5">
-            <h2 class="text-sm sm:text-base font-bold text-brand-900 mb-0.5">تسجيل وتعديل بيانات المتجر</h2>
-            <p class="text-xs text-brand-700">تظهر هذه المعلومات في أعلى الفواتير المطبوعة وتُحفظ سحابياً في Supabase</p>
-          </div>
           
-          <form onsubmit="saveMerchantSettings(event)" class="space-y-3 bg-slate-50 p-3.5 sm:p-5 rounded-2xl border border-slate-200 w-full">
-            <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1">اسم المحل / المتجر *</label>
-              <input type="text" id="setting-store-name" required placeholder="مثلاً: سوبر ماركت البركة" class="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">رقم الهاتف السوداني *</label>
-                <input type="tel" id="setting-store-phone" required placeholder="09xxxxxxx أو 01xxxxxxx" class="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">البريد الإلكتروني</label>
-                <input type="email" id="setting-store-email" placeholder="example@gmail.com" class="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1">نوع النشاط التجاري</label>
-              <select id="setting-store-type" class="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-brand-500 focus:outline-none">
-                <option value="بقالة وسوبرماركت">بقالة ومواد غذائية (سوبرماركت)</option>
-                <option value="صيدلية">صيدلية وأدوية</option>
-                <option value="إلكترونيات وموبايلات">إلكترونيات وموبايلات</option>
-                <option value="ملابس وأحذية">ملابس وأحذية</option>
-                <option value="مخبز وحلواني">مخبز وحلواني</option>
-                <option value="عام">نشاط تجاري عام</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1">عنوان المتجر / المدينة</label>
-              <input type="text" id="setting-store-address" placeholder="الخرطوم / أم درمان / بحري / بورتسودان..." class="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
-            </div>
-
-            <button type="submit" id="save-settings-btn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl text-xs transition shadow-md shadow-brand-600/30 flex items-center justify-center gap-2">
-              <i class="fa-solid fa-floppy-disk pointer-events-none"></i>
-              <span>حفظ البيانات ومزامنة المتجر مع Supabase (تفعيل التجربة)</span>
+          <!-- Sub-tabs for Settings -->
+          <div class="flex bg-slate-100 p-1 rounded-2xl gap-1">
+            <button id="tab-btn-store" onclick="switchSettingsSubTab('store')" class="flex-1 py-2 text-xs font-bold rounded-xl bg-brand-600 text-white shadow-xs transition">
+              <i class="fa-solid fa-store ml-1"></i> بيانات المتجر
             </button>
-          </form>
+            <button id="tab-btn-emp" onclick="switchSettingsSubTab('emp')" class="flex-1 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition">
+              <i class="fa-solid fa-users-gear ml-1"></i> إدارة الموظفين والصلاحيات
+            </button>
+          </div>
+
+          <!-- Section A: Store Settings -->
+          <div id="settings-store-section" class="space-y-4">
+            <div class="bg-brand-50 border border-brand-200 rounded-2xl p-3.5">
+              <h2 class="text-sm sm:text-base font-bold text-brand-900 mb-0.5">تسجيل وتعديل بيانات المتجر</h2>
+              <p class="text-xs text-brand-700">تظهر هذه المعلومات في أعلى الفواتير المطبوعة وتُحفظ سحابياً في Supabase</p>
+            </div>
+            
+            <form onsubmit="saveMerchantSettings(event)" class="space-y-3 bg-slate-50 p-3.5 sm:p-5 rounded-2xl border border-slate-200 w-full">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">اسم المحل / المتجر *</label>
+                <input type="text" id="setting-store-name" required placeholder="مثلاً: سوبر ماركت البركة" class="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">رقم الهاتف السوداني *</label>
+                  <input type="tel" id="setting-store-phone" required placeholder="09xxxxxxx أو 01xxxxxxx" class="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">البريد الإلكتروني</label>
+                  <input type="email" id="setting-store-email" placeholder="example@gmail.com" class="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">نوع النشاط التجاري</label>
+                <select id="setting-store-type" class="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                  <option value="بقالة وسوبرماركت">بقالة ومواد غذائية (سوبرماركت)</option>
+                  <option value="صيدلية">صيدلية وأدوية</option>
+                  <option value="إلكترونيات وموبايلات">إلكترونيات وموبايلات</option>
+                  <option value="ملابس وأحذية">ملابس وأحذية</option>
+                  <option value="مخبز وحلواني">مخبز وحلواني</option>
+                  <option value="عام">نشاط تجاري عام</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">عنوان المتجر / المدينة</label>
+                <input type="text" id="setting-store-address" placeholder="الخرطوم / أم درمان / بحري / بورتسودان..." class="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+              </div>
+
+              <button type="submit" id="save-settings-btn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl text-xs transition shadow-md shadow-brand-600/30 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-floppy-disk pointer-events-none"></i>
+                <span>حفظ البيانات ومزامنة المتجر مع Supabase (تفعيل التجربة)</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Section B: Employees Settings (Admin Only) -->
+          <div id="settings-employees-section" class="space-y-4 hidden">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-sm font-bold text-slate-800">حسابات الموظفين والصلاحيات</h3>
+                <p class="text-[11px] text-slate-500">إضافة كاشير أو مشرف وتحديد صلاحياته بدقة</p>
+              </div>
+              <button onclick="openAddEmployeeModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs">
+                <i class="fa-solid fa-user-plus"></i> موظف جديد
+              </button>
+            </div>
+            
+            <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-3">
+              <div class="text-xs text-slate-600 flex items-center justify-between">
+                <span>الموظفون المسجلون حالياً:</span>
+                <button onclick="openSwitchUserModal()" class="text-brand-600 hover:underline font-bold text-[11px]">تبديل المستخدم الحالي &larr;</button>
+              </div>
+              <div id="employees-settings-list" class="space-y-2">
+                <!-- Rendered dynamically by renderEmployees() -->
+              </div>
+            </div>
+          </div>
+
         </div>
         <!-- Safety spacer for mobile bar -->
         <div class="h-16 md:hidden w-full shrink-0 pointer-events-none"></div>
@@ -1989,87 +2424,157 @@
     </div>
   </div>
 
-  <!-- 6. Add Employee Modal -->
+  <!-- 6. Add Employee & Granular Permissions Modal -->
   <div id="employee-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-3 sm:p-4">
-    <div class="bg-white rounded-3xl max-w-sm w-full p-4 sm:p-5 shadow-2xl relative">
+    <div class="bg-white rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl relative max-h-[95vh] overflow-y-auto">
       <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-        <h4 class="font-bold text-slate-800 text-sm">إضافة موظف جديد</h4>
+        <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+          <i class="fa-solid fa-user-plus text-brand-600"></i>
+          <span>إضافة موظف جديد وتحديد الصلاحيات</span>
+        </h4>
         <button onclick="closeModal('employee-modal')" class="text-slate-400 hover:text-slate-600 w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
           <i class="fa-solid fa-xmark pointer-events-none"></i>
         </button>
       </div>
 
-      <form onsubmit="saveEmployee(event)" class="space-y-2.5 mt-2.5">
+      <form onsubmit="saveEmployee(event)" class="space-y-3 mt-3">
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">اسم الموظف *</label>
-          <input type="text" id="emp-name" required placeholder="مثال: أحمد عثمان" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs">
+          <label class="block text-xs font-bold text-slate-700 mb-1">اسم الموظف بالكامل *</label>
+          <input type="text" id="emp-name" required placeholder="مثال: عثمان عبد الرحيم" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none">
         </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">الدور والصلاحية *</label>
-          <select id="emp-role" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold">
-            <option value="cashier">كاشير فقط (لا يرى الأرباح والمصروفات)</option>
-            <option value="manager">مدير فرع (صلاحيات كاملة)</option>
-          </select>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">اسم المستخدم (Username) *</label>
+            <input type="text" id="emp-username" required placeholder="osman_pos" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">كلمة المرور *</label>
+            <input type="password" id="emp-password" required placeholder="••••••" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
+          </div>
         </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">تعيين في الفرع</label>
-          <select id="emp-branch" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs">
-          </select>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">الدور الوظيفي *</label>
+            <select id="emp-role" onchange="updatePermissionCheckboxesByRole()" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-800">
+              <option value="cashier">كاشير (نقطة البيع)</option>
+              <option value="supervisor">مشرف فرع (صلاحيات مخصصة)</option>
+              <option value="admin">مدير عام (صلاحيات كاملة)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">تعيين في الفرع</label>
+            <select id="emp-branch" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs">
+            </select>
+          </div>
         </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">رمز الدخول السريع (PIN 4 أرقام) *</label>
-          <input type="password" id="emp-pin" required maxlength="4" placeholder="1234" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-center font-mono text-sm">
+
+        <!-- Granular Permissions Checkboxes -->
+        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2">
+          <label class="block text-xs font-bold text-slate-800 mb-1">الصلاحيات الممنوحة لهذا الموظف:</label>
+          
+          <label class="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer p-1.5 rounded-lg hover:bg-white transition">
+            <input type="checkbox" id="perm-reports" class="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500">
+            <div>
+              <span class="font-bold">عرض التقارير والأرباح (canViewReports)</span>
+              <p class="text-[10px] text-slate-400">السماح برؤية مجمل وصافي الأرباح وإجمالي المبيعات والمصروفات</p>
+            </div>
+          </label>
+
+          <label class="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer p-1.5 rounded-lg hover:bg-white transition">
+            <input type="checkbox" id="perm-inventory" class="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500">
+            <div>
+              <span class="font-bold">إدارة المخزون والمنتجات (canManageInventory)</span>
+              <p class="text-[10px] text-slate-400">إضافة أصناف جديدة، تعديل الأسعار، ومسح الباركود وإدخاله</p>
+            </div>
+          </label>
+
+          <label class="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer p-1.5 rounded-lg hover:bg-white transition">
+            <input type="checkbox" id="perm-expenses" class="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500">
+            <div>
+              <span class="font-bold">إضافة وتسجيل المصروفات (canAddExpenses)</span>
+              <p class="text-[10px] text-slate-400">تسجيل قيود الإيجار والكهرباء والترحيل والنثريات اليومية</p>
+            </div>
+          </label>
         </div>
+
         <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-xs">
-          حفظ الموظف
+          حفظ الموظف وتفعيل الصلاحيات
         </button>
       </form>
     </div>
   </div>
 
-  <!-- 7. Switch User Modal -->
+  <!-- 7. Switch User / Employee Login Modal -->
   <div id="switch-user-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-3 sm:p-4">
-    <div class="bg-white rounded-3xl max-w-xs w-full p-4 sm:p-5 shadow-2xl relative">
-      <h4 class="font-bold text-slate-800 text-sm mb-3">تبديل المستخدم الحالي</h4>
+    <div class="bg-white rounded-3xl max-w-sm w-full p-4 sm:p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+        <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+          <i class="fa-solid fa-users text-brand-600"></i>
+          <span>تسجيل دخول الموظف</span>
+        </h4>
+        <button onclick="closeModal('switch-user-modal')" class="text-slate-400 hover:text-slate-600 w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
+          <i class="fa-solid fa-xmark pointer-events-none"></i>
+        </button>
+      </div>
+
       <div class="space-y-3">
         <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">المستخدم:</label>
-          <select id="switch-user-select" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold">
+          <label class="block text-xs font-bold text-slate-600 mb-1">اختر الموظف / الحساب:</label>
+          <select id="switch-user-select" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-800">
           </select>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">رمز المرور PIN (أو فارغ للمدير):</label>
-          <input type="password" id="switch-user-pin" maxlength="4" placeholder="••••" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-center font-mono text-lg font-bold">
+          <label class="block text-xs font-bold text-slate-600 mb-1">كلمة المرور:</label>
+          <input type="password" id="switch-user-password" placeholder="••••••" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-center font-mono text-base font-bold">
         </div>
         <button onclick="confirmUserSwitch()" class="w-full bg-dark-900 hover:bg-dark-800 text-white font-bold py-2.5 rounded-xl text-xs transition">
-          تسجيل الدخول
+          تسجيل الدخول وتطبيق الصلاحيات
         </button>
-        <button onclick="closeModal('switch-user-modal')" class="w-full text-slate-500 text-xs py-1">
+        <button onclick="closeModal('switch-user-modal')" class="w-full text-slate-400 hover:text-slate-600 text-xs py-1">
           إلغاء
         </button>
       </div>
     </div>
   </div>
 
-  <!-- 8. Printable Receipt Modal -->
+  <!-- 8. Printable Thermal Receipt Modal -->
   <div id="receipt-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-3 sm:p-4">
     <div class="bg-white rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-2xl relative max-h-[95vh] overflow-y-auto">
       <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-        <h4 class="font-bold text-slate-800 text-sm">إيصال الفاتورة</h4>
+        <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+          <i class="fa-solid fa-receipt text-brand-600"></i>
+          <span>إيصال الفاتورة (جاهز للطباعة الحرارية)</span>
+        </h4>
         <button onclick="closeModal('receipt-modal')" class="text-slate-400 hover:text-slate-600 w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
           <i class="fa-solid fa-xmark pointer-events-none"></i>
         </button>
       </div>
 
-      <div id="printable-receipt" class="my-3 p-3 bg-amber-50/40 border border-dashed border-slate-300 rounded-xl font-mono text-xs text-slate-800 space-y-2">
+      <!-- Thermal Paper Options -->
+      <div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl my-2 border border-slate-200">
+        <span class="text-xs font-bold text-slate-600">مقاس ورق الطابعة الحرارية:</span>
+        <div class="flex gap-1">
+          <button id="paper-btn-80" onclick="setThermalPaperSize('80mm')" class="px-3 py-1 text-xs font-bold rounded-lg bg-brand-600 text-white shadow-xs">80 مم (قياسي)</button>
+          <button id="paper-btn-58" onclick="setThermalPaperSize('58mm')" class="px-3 py-1 text-xs font-bold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200">58 مم (صغير)</button>
+        </div>
       </div>
 
-      <div class="flex gap-2 pt-2">
-        <button onclick="window.print()" class="flex-1 bg-dark-900 hover:bg-dark-800 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+      <!-- Printable Area -->
+      <div id="printable-receipt" class="my-2 p-3 bg-white border border-dashed border-slate-300 rounded-xl font-mono text-xs text-slate-800 space-y-2 shadow-inner">
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-2 pt-2">
+        <button onclick="printThermalReceipt()" class="flex-1 bg-dark-900 hover:bg-dark-800 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm">
           <i class="fa-solid fa-print pointer-events-none"></i>
-          <span>طباعة الفاتورة</span>
+          <span>طباعة حرارية فورية</span>
         </button>
-        <button onclick="closeModal('receipt-modal')" class="bg-slate-100 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold">
+        <button onclick="copyReceiptText()" class="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm">
+          <i class="fa-regular fa-copy pointer-events-none"></i>
+          <span>نسخ للبلوتوث (Raw)</span>
+        </button>
+        <button onclick="closeModal('receipt-modal')" class="bg-slate-100 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold">
           إغلاق
         </button>
       </div>
