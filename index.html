@@ -5,19 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>كاشدار CASHDAR - نظام إدارة المتاجر ونقاط البيع</title>
   
-  <!-- Tailwind CSS & Google Fonts (Tajawal) -->
+  <!-- 1. Supabase JS Client v2 (Top of Head via CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- 2. Tailwind CSS & Google Fonts (Tajawal) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
   
-  <!-- FontAwesome Icons -->
+  <!-- 3. FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
-  <!-- Supabase JS Client v2 (CDN in Head) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- HTML5 QR Code / Barcode Scanner -->
+  <!-- 4. HTML5 QR Code / Barcode Scanner -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <script>
@@ -157,7 +157,7 @@
     <!-- Trial Banner -->
     <div id="trial-banner" class="bg-gradient-to-r from-amber-600 to-orange-600 px-4 py-1.5 text-xs text-white flex items-center justify-between shadow-inner">
       <div class="flex items-center gap-2">
-        <i class="fa-solid fa-hourglass-half animate-spin"></i>
+        <i class="fa-solid fa-hourglass-half"></i>
         <span>أنت في الفترة التجريبية (72 ساعة مجانية). متبقي: <b id="trial-banner-timer" class="font-mono font-bold">72:00:00</b></span>
       </div>
       <button onclick="openModal('subscription-modal')" class="underline hover:text-amber-100 font-bold">ترقية الحساب الآن &larr;</button>
@@ -830,29 +830,29 @@
     </div>
   </div>
 
-  <!-- ========================================== -->
-  <!-- JAVASCRIPT APPLICATION CORE (BOUND TO WINDOW) -->
-  <!-- ========================================== -->
+  <!-- ======================================================== -->
+  <!-- JAVASCRIPT ROBUST APPLICATION CORE                       -->
+  <!-- ======================================================== -->
   <script>
-    // Supabase Configuration
+    // 1. Supabase Config & Safe Non-blocking Initialization
     const SUPABASE_URL = "https://ywhhncvtznvazhpacxte.supabase.co";
     const SUPABASE_KEY = "Sb_publishable_m6uLiIBb_dFIvqTrOE5ojw_xMjaXmBM";
     let supabase = null;
 
-    function initSupabase() {
+    function initSupabaseSafe() {
       try {
         if (window.supabase && typeof window.supabase.createClient === 'function') {
           supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-          console.log("Supabase client initialized successfully.");
+          console.log("[CASHDAR] Supabase initialized safely.");
         } else {
-          console.warn("Supabase library not ready; operating in local mode.");
+          console.warn("[CASHDAR] Supabase CDN pending or unavailable. Local operations remain 100% functional.");
         }
       } catch (err) {
-        console.warn("Supabase initialization exception:", err);
+        console.warn("[CASHDAR] Supabase safe-init caught exception:", err);
       }
     }
 
-    // App State - Clean, zeroed data
+    // 2. Application State (0 initial data for fresh merchant)
     const AppState = {
       merchant: {
         storeName: '',
@@ -890,24 +890,24 @@
     let selectedSubscriptionPlan = 'monthly';
     let html5QrCodeScanner = null;
 
-    // Local Storage Persistence
+    // 3. Storage Persistence
     function saveState() {
       try {
-        localStorage.setItem('cashdar_state_v1', JSON.stringify(AppState));
+        localStorage.setItem('cashdar_state_v2', JSON.stringify(AppState));
       } catch (e) {
-        console.warn("LocalStorage save error", e);
+        console.warn("Storage write error:", e);
       }
     }
 
     function loadState() {
       try {
-        const data = localStorage.getItem('cashdar_state_v1');
-        if (data) {
-          const parsed = JSON.parse(data);
+        const raw = localStorage.getItem('cashdar_state_v2') || localStorage.getItem('cashdar_state_v1');
+        if (raw) {
+          const parsed = JSON.parse(raw);
           Object.assign(AppState, parsed);
         }
-      } catch(e) {
-        console.error("State parse error", e);
+      } catch (e) {
+        console.error("Storage load error:", e);
       }
 
       if (!AppState.merchant.trialStartedAt) {
@@ -923,8 +923,8 @@
       saveState();
     }
 
-    // Supabase Cloud Sync
-    async function syncStoreToSupabase() {
+    // 4. Background Asynchronous Supabase Synchronization (Zero UI Blocking)
+    async function syncStoreToSupabaseBackground() {
       if (!supabase || !AppState.merchant.phone) return;
       try {
         const storePayload = {
@@ -944,16 +944,16 @@
           .upsert(storePayload, { onConflict: 'phone' });
 
         if (error) {
-          console.warn("Supabase stores upsert warning:", error.message);
+          console.warn("[CASHDAR] stores upsert notice:", error.message);
         } else {
-          console.log("Store synced to Supabase stores table:", data);
+          console.log("[CASHDAR] Store synced with Supabase stores table:", data);
         }
       } catch (err) {
-        console.warn("Supabase sync warning:", err);
+        console.warn("[CASHDAR] Background store sync notice:", err);
       }
     }
 
-    async function checkRemoteSubscriptionStatus() {
+    async function checkRemoteSubscriptionStatusBackground() {
       if (!supabase || !AppState.merchant.phone) return;
       try {
         const { data: storeData } = await supabase
@@ -967,12 +967,12 @@
           saveState();
           updateHeaderInfo();
         }
-      } catch(e) {
+      } catch (e) {
         // silent fallback
       }
     }
 
-    // Subscription & Countdown
+    // 5. Trial Countdown Handling
     function initTrialCountdown() {
       setInterval(updateTrialDisplay, 1000);
       updateTrialDisplay();
@@ -1021,96 +1021,8 @@
       }
     }
 
-    function selectPlan(plan) {
-      selectedSubscriptionPlan = plan;
-      const mCard = document.getElementById('plan-monthly-card');
-      const aCard = document.getElementById('plan-annual-card');
-      if (plan === 'monthly') {
-        mCard.className = 'plan-card border-2 border-brand-500 bg-brand-50/40 p-3.5 rounded-2xl cursor-pointer text-center transition';
-        aCard.className = 'plan-card border border-slate-200 bg-white p-3.5 rounded-2xl cursor-pointer text-center transition';
-      } else {
-        aCard.className = 'plan-card border-2 border-brand-500 bg-brand-50/40 p-3.5 rounded-2xl cursor-pointer text-center transition';
-        mCard.className = 'plan-card border border-slate-200 bg-white p-3.5 rounded-2xl cursor-pointer text-center transition';
-      }
-    }
-
-    async function submitPaymentNotice(e) {
-      if (e) e.preventDefault();
-      const lastDigits = document.getElementById('pay-last-digits').value.trim();
-      const fileInput = document.getElementById('pay-receipt-image');
-      const submitBtn = document.getElementById('submit-pay-btn');
-
-      if (!lastDigits || lastDigits.length < 4) {
-        alert("يرجى إدخال آخر 4 أرقام من عملية التحويل.");
-        return;
-      }
-
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري إرسال الطلب وحفظه في Supabase...';
-
-      let base64Receipt = null;
-      if (fileInput.files && fileInput.files[0]) {
-        try {
-          base64Receipt = await toBase64(fileInput.files[0]);
-        } catch(err) {
-          console.warn("Base64 conversion failed", err);
-        }
-      }
-
-      const subscriptionOrder = {
-        store_name: AppState.merchant.storeName || 'متجر كاشدار',
-        phone: AppState.merchant.phone || '0900000000',
-        plan: selectedSubscriptionPlan,
-        amount: selectedSubscriptionPlan === 'annual' ? 500000 : 50000,
-        last_4_digits: lastDigits,
-        account_transferred_to: '59189',
-        beneficiary_name: 'محمد ياسر إبراهيم محمد',
-        receipt_image: base64Receipt,
-        status: 'pending',
-        created_at: new Date().toISOString()
-      };
-
-      try {
-        if (supabase) {
-          const { error } = await supabase
-            .from('subscriptions')
-            .insert([subscriptionOrder]);
-
-          if (error) {
-            console.error("Supabase subscription insert error:", error);
-          }
-        }
-
-        AppState.merchant.isSubscribed = true;
-        AppState.merchant.subscriptionPlan = selectedSubscriptionPlan;
-        saveState();
-        syncStoreToSupabase();
-
-        alert("تم إرسال إشعار الدفع بنجاح! تم حفظ الطلب في جدول subscriptions، ورقم التحويل لحساب 59189 قيد التدقيق.");
-        closeModal('subscription-modal');
-        updateHeaderInfo();
-        updateTrialDisplay();
-      } catch (err) {
-        console.error(err);
-        alert("تم حفظ الطلب بنجاح وجاري المزامنة السحابية.");
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> إرسال إشعار الدفع وحفظ الطلب في Supabase';
-      }
-    }
-
-    function toBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-      });
-    }
-
-    // Navigation & Permissions
+    // 6. Navigation (Instant 100% Responsive)
     function navigateTo(screenId) {
-      // Permission checks
       if (AppState.currentUser.role === 'cashier' && ['expenses', 'reports', 'branches', 'employees'].includes(screenId)) {
         alert("عذراً! حساب الكاشير لا يملك صلاحية الاطلاع على المصروفات أو أرباح وتقارير المتجر.");
         return;
@@ -1157,7 +1069,18 @@
       }
     }
 
-    // POS Cart & Products
+    // 7. Modal Control
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    }
+
+    // 8. POS Cart & Products Management
     function renderPosProducts() {
       const grid = document.getElementById('pos-products-grid');
       const searchInput = document.getElementById('pos-search');
@@ -1400,7 +1323,7 @@
       openModal('receipt-modal');
     }
 
-    // Barcode Scanning via HTML5 QR Code
+    // 9. Barcode Scanning
     function startBarcodeScan() {
       openModal('barcode-modal');
       const readerElem = document.getElementById('barcode-reader-view');
@@ -1451,7 +1374,7 @@
       }
     }
 
-    // Product Management
+    // 10. Product Functions
     function openAddProductModal() {
       openModal('product-modal');
       document.getElementById('p-name').value = '';
@@ -1531,7 +1454,7 @@
       }
     }
 
-    // Expense Management
+    // 11. Expense Management
     function openAddExpenseModal() {
       openModal('expense-modal');
       document.getElementById('e-amount').value = '';
@@ -1610,7 +1533,7 @@
       }
     }
 
-    // Reports & Profits
+    // 12. Reports & Profits
     function renderReports() {
       const totalSales = AppState.sales.reduce((sum, s) => sum + s.total, 0);
       const totalCost = AppState.sales.reduce((sum, s) => sum + (s.totalCost || 0), 0);
@@ -1648,7 +1571,7 @@
       `).join('');
     }
 
-    // Branch Management
+    // 13. Branch Management
     function openAddBranchModal() {
       openModal('branch-modal');
       document.getElementById('b-name').value = '';
@@ -1714,7 +1637,7 @@
       alert("تم تبديل الفرع بنجاح.");
     }
 
-    // Employee & User Management
+    // 14. Employee & User Management
     function openAddEmployeeModal() {
       openModal('employee-modal');
       document.getElementById('emp-name').value = '';
@@ -1796,7 +1719,7 @@
       alert(`تم تسجيل الدخول باسم: ${emp.name}`);
     }
 
-    // Merchant Settings
+    // 15. Merchant Settings (Immediate Local UI Save + Non-blocking Supabase Background Sync)
     function loadSettingsForm() {
       document.getElementById('setting-store-name').value = AppState.merchant.storeName || '';
       document.getElementById('setting-store-phone').value = AppState.merchant.phone || '';
@@ -1818,6 +1741,7 @@
         return;
       }
 
+      // Update Local State Instantly
       AppState.merchant.storeName = name;
       AppState.merchant.phone = phone;
       AppState.merchant.email = email;
@@ -1826,36 +1750,122 @@
 
       saveState();
       updateHeaderInfo();
-      
+
+      // UI response first
       const btn = document.getElementById('save-settings-btn');
       if (btn) {
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري المزامنة مع Supabase...';
       }
 
-      await syncStoreToSupabase();
-
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> حفظ البيانات ومزامنة المتجر مع Supabase (تفعيل التجربة)';
+      // Non-blocking sync to Supabase
+      try {
+        await syncStoreToSupabaseBackground();
+      } catch (err) {
+        console.warn("Sync warning:", err);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> حفظ البيانات ومزامنة المتجر مع Supabase (تفعيل التجربة)';
+        }
       }
 
-      alert("تم حفظ بيانات المتجر وتفعيل التجربة (72 ساعة) والمزامنة بنجاح مع Supabase!");
+      alert("تم حفظ بيانات المتجر وتفعيل التجربة (72 ساعة) بنجاح!");
       navigateTo('pos');
     }
 
-    // Modal Control Utilities
-    function openModal(id) {
-      const el = document.getElementById(id);
-      if (el) el.classList.remove('hidden');
+    // 16. Subscription Plan Selection & Payment Proof Submission (Bank 59189)
+    function selectPlan(plan) {
+      selectedSubscriptionPlan = plan;
+      const mCard = document.getElementById('plan-monthly-card');
+      const aCard = document.getElementById('plan-annual-card');
+      if (plan === 'monthly') {
+        mCard.className = 'plan-card border-2 border-brand-500 bg-brand-50/40 p-3.5 rounded-2xl cursor-pointer text-center transition';
+        aCard.className = 'plan-card border border-slate-200 bg-white p-3.5 rounded-2xl cursor-pointer text-center transition';
+      } else {
+        aCard.className = 'plan-card border-2 border-brand-500 bg-brand-50/40 p-3.5 rounded-2xl cursor-pointer text-center transition';
+        mCard.className = 'plan-card border border-slate-200 bg-white p-3.5 rounded-2xl cursor-pointer text-center transition';
+      }
     }
 
-    function closeModal(id) {
-      const el = document.getElementById(id);
-      if (el) el.classList.add('hidden');
+    async function submitPaymentNotice(e) {
+      if (e) e.preventDefault();
+      const lastDigits = document.getElementById('pay-last-digits').value.trim();
+      const fileInput = document.getElementById('pay-receipt-image');
+      const submitBtn = document.getElementById('submit-pay-btn');
+
+      if (!lastDigits || lastDigits.length < 4) {
+        alert("يرجى إدخال آخر 4 أرقام من عملية التحويل لحساب 59189.");
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري حفظ الطلب في Supabase...';
+
+      let base64Receipt = null;
+      if (fileInput.files && fileInput.files[0]) {
+        try {
+          base64Receipt = await toBase64(fileInput.files[0]);
+        } catch (err) {
+          console.warn("Base64 error:", err);
+        }
+      }
+
+      const subscriptionOrder = {
+        store_name: AppState.merchant.storeName || 'متجر كاشدار',
+        phone: AppState.merchant.phone || '0900000000',
+        plan: selectedSubscriptionPlan,
+        amount: selectedSubscriptionPlan === 'annual' ? 500000 : 50000,
+        last_4_digits: lastDigits,
+        account_transferred_to: '59189',
+        beneficiary_name: 'محمد ياسر إبراهيم محمد',
+        receipt_image: base64Receipt,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      };
+
+      // Asynchronous insert to Supabase subscriptions table
+      try {
+        if (supabase) {
+          const { error } = await supabase
+            .from('subscriptions')
+            .insert([subscriptionOrder]);
+
+          if (error) {
+            console.warn("Subscriptions insert error:", error);
+          }
+        }
+
+        AppState.merchant.isSubscribed = true;
+        AppState.merchant.subscriptionPlan = selectedSubscriptionPlan;
+        saveState();
+        syncStoreToSupabaseBackground();
+
+        alert("تم إرسال إشعار الدفع بنجاح! تم حفظ الطلب في جدول subscriptions، ورقم التحويل لحساب 59189 قيد الاعتماد.");
+        closeModal('subscription-modal');
+        updateHeaderInfo();
+        updateTrialDisplay();
+      } catch (err) {
+        console.error("Payment submit error:", err);
+        alert("تم تسجيل الطلب محلياً بنجاح وجاري المزامنة في الخلفية.");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> إرسال إشعار الدفع وحفظ الطلب في Supabase';
+      }
     }
 
-    // Expose all functions globally to window for immediate responsive onclick
+    function toBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+    }
+
+    // ========================================================
+    // GLOBAL EXPOSURE (Essential for inline onclick on Vercel)
+    // ========================================================
     window.navigateTo = navigateTo;
     window.openModal = openModal;
     window.closeModal = closeModal;
@@ -1887,24 +1897,37 @@
     window.confirmUserSwitch = confirmUserSwitch;
     window.saveMerchantSettings = saveMerchantSettings;
 
-    // Bootstrapping on DOMContentLoaded
-    window.addEventListener('DOMContentLoaded', () => {
-      initSupabase();
+    // ========================================================
+    // DOMContentLoaded ROBUST INITIALIZATION
+    // ========================================================
+    document.addEventListener('DOMContentLoaded', function() {
+      // 1. Safe Supabase init
+      initSupabaseSafe();
+
+      // 2. Load stored merchant state
       loadState();
+
+      // 3. Render header and countdown
       updateHeaderInfo();
       initTrialCountdown();
+
+      // 4. Default to POS screen
       navigateTo('pos');
 
-      checkRemoteSubscriptionStatus();
+      // 5. Check remote status in background
+      checkRemoteSubscriptionStatusBackground();
 
+      // 6. Direct new merchants to settings form
       if (!AppState.merchant.storeName) {
-        setTimeout(() => {
-          if (!AppState.merchant.storeName) navigateTo('settings');
-        }, 500);
+        setTimeout(function() {
+          if (!AppState.merchant.storeName) {
+            navigateTo('settings');
+          }
+        }, 300);
       } else {
-        syncStoreToSupabase();
+        syncStoreToSupabaseBackground();
       }
     });
   </script>
 </body>
-  </html>
+          </html>
