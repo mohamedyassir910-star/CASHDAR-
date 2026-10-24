@@ -1,17 +1,18 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" class="h-full">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>كاشدار CASHDAR - نظام إدارة المتاجر ونقاط البيع</title>
   
-  <!-- 1. Supabase JS Client v2 (CDN in Head) -->
+  <!-- 1. Supabase JS Client v2 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- 2. Tailwind CSS -->
+  <!-- 2. html5-qrcode Barcode Scanner Library -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <!-- 3. Tailwind CSS & Google Fonts & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- 3. Google Fonts (Tajawal) & FontAwesome Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
@@ -45,14 +46,20 @@
   </script>
 
   <style>
-    body {
-      font-family: 'Tajawal', sans-serif;
-      user-select: none;
+    * {
+      box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
     }
+    html, body {
+      overflow-x: hidden;
+      max-width: 100vw;
+      width: 100%;
+      font-family: 'Tajawal', sans-serif;
+      user-select: none;
+    }
     ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
+      width: 5px;
+      height: 5px;
     }
     ::-webkit-scrollbar-track {
       background: #f1f5f9;
@@ -71,27 +78,24 @@
         width: 80mm;
       }
     }
-    .scanner-laser {
-      position: absolute;
-      top: 50%;
-      left: 10%;
-      right: 10%;
-      height: 2px;
-      background: #ef4444;
-      box-shadow: 0 0 8px #ef4444;
-      animation: scanLaser 2s infinite ease-in-out;
+    #qr-reader {
+      width: 100% !important;
+      border: none !important;
     }
-    @keyframes scanLaser {
-      0%, 100% { transform: translateY(-40px); }
-      50% { transform: translateY(40px); }
+    #qr-reader__scan_region {
+      background: #000;
+    }
+    #qr-reader video {
+      border-radius: 1rem;
+      object-fit: cover !important;
     }
   </style>
 
   <!-- ======================================================== -->
-  <!-- CORE JAVASCRIPT IN HEAD (PRE-LOADED FOR INSTANT ONCLICK) -->
+  <!-- CORE JAVASCRIPT IN HEAD (PRE-LOADED FOR DIRECT ONCLICK)  -->
   <!-- ======================================================== -->
   <script>
-    // 1. Supabase Config & Safe Non-blocking Initialization
+    // 1. Supabase Config & Safe Initializer
     const SUPABASE_URL = "https://ywhhncvtznvazhpacxte.supabase.co";
     const SUPABASE_KEY = "Sb_publishable_m6uLiIBb_dFIvqTrOE5ojw_xMjaXmBM";
     let sbClient = null;
@@ -146,9 +150,103 @@
     };
 
     let selectedSubscriptionPlan = 'monthly';
-    let cameraMediaStream = null;
+    let html5QrCodeScannerInstance = null;
 
-    // 3. Local Storage Persistence
+    // 3. Audio Beep Tone Generator
+    function playBarcodeBeep() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1000, ctx.currentTime);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.12);
+      } catch (e) {
+        console.log("Beep notice:", e);
+      }
+    }
+
+    // 4. Barcode Camera Reader (html5-qrcode with camera permissions)
+    async function startBarcodeScanner() {
+      openModal('barcode-scanner-modal');
+      const readerBox = document.getElementById('qr-reader');
+      if (readerBox) readerBox.innerHTML = '';
+      const manualBox = document.getElementById('barcode-manual-box');
+      if (manualBox) manualBox.value = '';
+
+      if (typeof Html5Qrcode === 'undefined') {
+        alert("مكتبة الكاميرا قيد التحميل من الخادم، يرجى المحاولة بعد لحظات أو استخدام الإدخال اليدوي.");
+        return;
+      }
+
+      try {
+        if (html5QrCodeScannerInstance) {
+          try { await html5QrCodeScannerInstance.stop(); } catch (err) {}
+          html5QrCodeScannerInstance = null;
+        }
+
+        html5QrCodeScannerInstance = new Html5Qrcode("qr-reader");
+        const cameraConfig = { fps: 15, qrbox: { width: 220, height: 220 } };
+
+        await html5QrCodeScannerInstance.start(
+          { facingMode: "environment" },
+          cameraConfig,
+          (decodedText) => {
+            playBarcodeBeep();
+            stopBarcodeScanner();
+            handleScannedBarcode(decodedText);
+          },
+          (errorMessage) => {
+            // ongoing scan
+          }
+        );
+      } catch (cameraErr) {
+        console.error("Camera permission error:", cameraErr);
+        alert("يرجى التأكد من منح صلاحية الكاميرا للمتصفح لمسح الباركود.");
+      }
+    }
+
+    async function stopBarcodeScanner() {
+      if (html5QrCodeScannerInstance) {
+        try {
+          await html5QrCodeScannerInstance.stop();
+          html5QrCodeScannerInstance.clear();
+        } catch (e) {}
+        html5QrCodeScannerInstance = null;
+      }
+      closeModal('barcode-scanner-modal');
+    }
+
+    function submitManualBarcodeFromModal() {
+      const code = document.getElementById('barcode-manual-box').value.trim();
+      if (!code) return;
+      stopBarcodeScanner();
+      handleScannedBarcode(code);
+    }
+
+    function handleScannedBarcode(barcode) {
+      const match = AppState.products.find(p => p.barcode === barcode);
+      if (match) {
+        addToCart(match.id);
+        alert("تمت قراءة الباركود وإضافة المنتج للسلة: " + match.name);
+      } else {
+        const createNow = confirm("لم يتم العثور على صنف بالرمز (" + barcode + "). هل ترغب في تسجيل صنف جديد بهذا الباركود؟");
+        if (createNow) {
+          openAddProductModal();
+          const barcodeInput = document.getElementById('p-barcode');
+          if (barcodeInput) barcodeInput.value = barcode;
+        }
+      }
+    }
+
+    // 5. Local Storage Persistence
     function saveState() {
       try {
         localStorage.setItem('cashdar_pos_v3', JSON.stringify(AppState));
@@ -181,7 +279,7 @@
       saveState();
     }
 
-    // 4. Modal Operations (Direct Instant UI)
+    // 6. Modal Operations
     function openModal(id) {
       const el = document.getElementById(id);
       if (el) {
@@ -198,7 +296,7 @@
       }
     }
 
-    // 5. Navigation Operations (Direct Instant UI)
+    // 7. Navigation Operations
     function navigateTo(screenId) {
       if (AppState.currentUser.role === 'cashier' && ['expenses', 'reports', 'branches', 'employees'].includes(screenId)) {
         alert("عذراً! حساب الكاشير لا يملك صلاحية الاطلاع على المصروفات أو أرباح وتقارير المتجر.");
@@ -216,6 +314,7 @@
         target.style.display = 'flex';
       }
 
+      // Sidebar active states
       document.querySelectorAll('.nav-item').forEach(el => {
         el.classList.remove('bg-brand-600', 'text-white', 'shadow-sm');
         el.classList.add('text-slate-600', 'hover:bg-slate-100');
@@ -224,6 +323,17 @@
       if (activeNav) {
         activeNav.classList.remove('text-slate-600', 'hover:bg-slate-100');
         activeNav.classList.add('bg-brand-600', 'text-white', 'shadow-sm');
+      }
+
+      // Bottom bar active states (mobile)
+      document.querySelectorAll('.mobile-nav-btn').forEach(el => {
+        el.classList.remove('text-brand-600', 'font-black');
+        el.classList.add('text-slate-500');
+      });
+      const activeMobile = document.getElementById('mob-nav-' + screenId);
+      if (activeMobile) {
+        activeMobile.classList.remove('text-slate-500');
+        activeMobile.classList.add('text-brand-600', 'font-black');
       }
 
       if (screenId === 'pos') renderPosProducts();
@@ -253,7 +363,7 @@
       }
     }
 
-    // 6. 72-Hour Trial Countdown
+    // 8. 72-Hour Trial Countdown
     function initTrialCountdown() {
       setInterval(updateTrialDisplay, 1000);
       updateTrialDisplay();
@@ -301,7 +411,7 @@
       }
     }
 
-    // 7. Background Async Supabase Operations
+    // 9. Background Async Supabase Operations
     async function syncStoreToSupabaseBackground() {
       const client = getSupabase();
       if (!client || !AppState.merchant.phone) return;
@@ -322,10 +432,8 @@
           .from('stores')
           .upsert(storePayload, { onConflict: 'phone' });
 
-        if (error) {
-          console.warn("[CASHDAR] stores upsert notice:", error.message);
-        } else {
-          console.log("[CASHDAR] Store synced with Supabase stores table:", data);
+        if (!error) {
+          console.log("[CASHDAR] Store synced with Supabase stores table");
         }
       } catch (err) {
         console.warn("[CASHDAR] Background store sync notice:", err);
@@ -347,12 +455,10 @@
           saveState();
           updateHeaderInfo();
         }
-      } catch (e) {
-        // silent fallback
-      }
+      } catch (e) {}
     }
 
-    // 8. POS Cart & Products Management
+    // 10. POS Cart & Products Management
     function renderPosProducts() {
       const grid = document.getElementById('pos-products-grid');
       const searchInput = document.getElementById('pos-search');
@@ -370,7 +476,7 @@
           <div class="col-span-full py-12 text-center text-slate-400">
             <i class="fa-solid fa-box-open text-4xl mb-2 text-slate-300"></i>
             <p class="text-sm font-bold">لا توجد منتجات مسجلة في هذا الفرع</p>
-            <p class="text-xs text-slate-400 mt-1">اضغط على زر (إضافة صنف) بالأعلى للبدء</p>
+            <p class="text-xs text-slate-400 mt-1">اضغط على زر (إضافة صنف) أو امسح الباركود</p>
           </div>
         `;
         return;
@@ -381,7 +487,7 @@
           <div>
             <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1">
               <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-semibold">${p.unit || 'قطعة'}</span>
-              <span class="font-mono text-[10px]">${p.barcode ? p.barcode : ''}</span>
+              <span class="font-mono text-[10px] truncate max-w-[70px]">${p.barcode ? p.barcode : ''}</span>
             </div>
             <h4 class="font-bold text-slate-800 text-xs sm:text-sm group-hover:text-brand-600 transition line-clamp-2">${p.name}</h4>
           </div>
@@ -431,22 +537,25 @@
     function renderCart() {
       const list = document.getElementById('cart-items-list');
       const badge = document.getElementById('cart-items-count');
+      const mobCartBadge = document.getElementById('mob-cart-badge');
       if (!list) return;
 
       if (AppState.cart.length === 0) {
         list.innerHTML = `
-          <div class="h-44 flex flex-col items-center justify-center text-slate-400 text-xs text-center">
+          <div class="h-36 flex flex-col items-center justify-center text-slate-400 text-xs text-center">
             <i class="fa-solid fa-cart-plus text-3xl mb-2 text-slate-300"></i>
             <span>السلة فارغة</span>
             <span class="text-[11px] text-slate-400 mt-0.5">اختر المنتجات لإضافتها للفاتورة</span>
           </div>
         `;
         if (badge) badge.innerText = '0 أصناف';
+        if (mobCartBadge) mobCartBadge.innerText = '0';
         calculateCartTotal();
         return;
       }
 
       if (badge) badge.innerText = AppState.cart.length + ' أصناف';
+      if (mobCartBadge) mobCartBadge.innerText = AppState.cart.length;
 
       list.innerHTML = AppState.cart.map(item => `
         <div class="bg-white p-2.5 rounded-xl border border-slate-200/90 flex items-center justify-between shadow-sm">
@@ -484,11 +593,11 @@
     function selectPaymentMethod(method) {
       AppState.selectedPaymentMethod = method;
       document.querySelectorAll('.pay-method-btn').forEach(b => {
-        b.className = 'pay-method-btn bg-white hover:bg-slate-100 text-slate-700 py-2 rounded-lg text-center border border-slate-200 transition';
+        b.className = 'pay-method-btn bg-white hover:bg-slate-100 text-slate-700 py-2 rounded-lg text-center border border-slate-200 transition text-xs font-bold';
       });
       const activeBtn = document.getElementById('pay-' + method + '-btn');
       if (activeBtn) {
-        activeBtn.className = 'pay-method-btn bg-brand-600 text-white py-2 rounded-lg text-center border border-brand-600 shadow-sm transition';
+        activeBtn.className = 'pay-method-btn bg-brand-600 text-white py-2 rounded-lg text-center border border-brand-600 shadow-sm transition text-xs font-bold';
       }
     }
 
@@ -593,78 +702,7 @@
       openModal('receipt-modal');
     }
 
-    // 9. Camera Barcode Scanner (Pure Standard HTML5 - Zero External Dependencies)
-    async function startBarcodeScan() {
-      openModal('barcode-modal');
-      const video = document.getElementById('camera-stream-video');
-      const manualInput = document.getElementById('barcode-manual-box');
-      if (manualInput) manualInput.value = '';
-
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        try {
-          cameraMediaStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }
-          });
-          if (video) {
-            video.srcObject = cameraMediaStream;
-            video.play();
-          }
-
-          if ('BarcodeDetector' in window) {
-            const barcodeDetector = new BarcodeDetector({
-              formats: ['ean_13', 'ean_8', 'code_128', 'qr_code', 'upc_a', 'upc_e']
-            });
-            const scanInterval = setInterval(async () => {
-              if (!cameraMediaStream) {
-                clearInterval(scanInterval);
-                return;
-              }
-              try {
-                const barcodes = await barcodeDetector.detect(video);
-                if (barcodes.length > 0) {
-                  clearInterval(scanInterval);
-                  stopBarcodeScan();
-                  handleScannedBarcode(barcodes[0].rawValue);
-                }
-              } catch (e) {}
-            }, 500);
-          }
-        } catch (err) {
-          console.warn("Camera permission or stream notice:", err);
-        }
-      }
-    }
-
-    function stopBarcodeScan() {
-      if (cameraMediaStream) {
-        cameraMediaStream.getTracks().forEach(track => track.stop());
-        cameraMediaStream = null;
-      }
-      closeModal('barcode-modal');
-    }
-
-    function submitManualBarcodeFromModal() {
-      const code = document.getElementById('barcode-manual-box').value.trim();
-      if (!code) return;
-      stopBarcodeScan();
-      handleScannedBarcode(code);
-    }
-
-    function handleScannedBarcode(barcode) {
-      const match = AppState.products.find(p => p.barcode === barcode);
-      if (match) {
-        addToCart(match.id);
-        alert("تم التعرف على الصنف: " + match.name);
-      } else {
-        const addNow = confirm("لم يتم العثور على صنف بالباركود (" + barcode + "). هل ترغب في إضافته الآن؟");
-        if (addNow) {
-          openAddProductModal();
-          document.getElementById('p-barcode').value = barcode;
-        }
-      }
-    }
-
-    // 10. Product Functions
+    // 11. Product Management
     function openAddProductModal() {
       openModal('product-modal');
       document.getElementById('p-name').value = '';
@@ -744,7 +782,7 @@
       }
     }
 
-    // 11. Expense Management
+    // 12. Expenses Management
     function openAddExpenseModal() {
       openModal('expense-modal');
       document.getElementById('e-amount').value = '';
@@ -823,7 +861,7 @@
       }
     }
 
-    // 12. Reports & Profits
+    // 13. Reports & Profits
     function renderReports() {
       const totalSales = AppState.sales.reduce((sum, s) => sum + s.total, 0);
       const totalCost = AppState.sales.reduce((sum, s) => sum + (s.totalCost || 0), 0);
@@ -861,7 +899,7 @@
       `).join('');
     }
 
-    // 13. Branch Management
+    // 14. Branches Management
     function openAddBranchModal() {
       openModal('branch-modal');
       document.getElementById('b-name').value = '';
@@ -927,7 +965,7 @@
       alert("تم تبديل الفرع بنجاح.");
     }
 
-    // 14. Employee & User Management
+    // 15. Employee Management
     function openAddEmployeeModal() {
       openModal('employee-modal');
       document.getElementById('emp-name').value = '';
@@ -1009,7 +1047,7 @@
       alert("تم تسجيل الدخول باسم: " + emp.name);
     }
 
-    // 15. Merchant Settings (Immediate Local UI Save + Non-blocking Supabase Background Sync)
+    // 16. Merchant Settings Form
     function loadSettingsForm() {
       document.getElementById('setting-store-name').value = AppState.merchant.storeName || '';
       document.getElementById('setting-store-phone').value = AppState.merchant.phone || '';
@@ -1061,17 +1099,17 @@
       navigateTo('pos');
     }
 
-    // 16. Subscription Plan Selection & Payment Proof Submission (Bank 59189)
+    // 17. Subscription Plan Selection & Payment Proof Submission (Bank 59189)
     function selectPlan(plan) {
       selectedSubscriptionPlan = plan;
       const mCard = document.getElementById('plan-monthly-card');
       const aCard = document.getElementById('plan-annual-card');
       if (plan === 'monthly') {
-        mCard.className = 'plan-card border-2 border-brand-500 bg-brand-50/40 p-3.5 rounded-2xl cursor-pointer text-center transition';
-        aCard.className = 'plan-card border border-slate-200 bg-white p-3.5 rounded-2xl cursor-pointer text-center transition';
+        mCard.className = 'plan-card border-2 border-brand-500 bg-brand-50/40 p-3 rounded-2xl cursor-pointer text-center transition';
+        aCard.className = 'plan-card border border-slate-200 bg-white p-3 rounded-2xl cursor-pointer text-center transition';
       } else {
-        aCard.className = 'plan-card border-2 border-brand-500 bg-brand-50/40 p-3.5 rounded-2xl cursor-pointer text-center transition';
-        mCard.className = 'plan-card border border-slate-200 bg-white p-3.5 rounded-2xl cursor-pointer text-center transition';
+        aCard.className = 'plan-card border-2 border-brand-500 bg-brand-50/40 p-3 rounded-2xl cursor-pointer text-center transition';
+        mCard.className = 'plan-card border border-slate-200 bg-white p-3 rounded-2xl cursor-pointer text-center transition';
       }
     }
 
@@ -1170,42 +1208,38 @@
     };
   </script>
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col">
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col justify-between">
 
   <!-- =============================== -->
   <!-- TOP NAVIGATION HEADER           -->
   <!-- =============================== -->
   <header class="bg-dark-900 text-white sticky top-0 z-40 shadow-md">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex items-center justify-between h-16">
+    <div class="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-14 sm:h-16">
         
-        <!-- Logo & Store Info -->
-        <div class="flex items-center space-x-3 space-x-reverse cursor-pointer" onclick="navigateTo('settings')">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30">
-            <i class="fa-solid fa-cash-register text-lg"></i>
+        <!-- Logo & Store Name -->
+        <div class="flex items-center gap-2 cursor-pointer" onclick="navigateTo('settings')">
+          <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 shrink-0">
+            <i class="fa-solid fa-cash-register text-base sm:text-lg"></i>
           </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="font-black text-lg tracking-wide text-emerald-400">كاشدار</span>
-              <span class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700">CASHDAR</span>
-              <span id="cloud-sync-badge" class="hidden sm:inline-flex items-center gap-1 text-[10px] bg-emerald-950/80 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-800/60 font-mono">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                <span>سحابي Supabase</span>
-              </span>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="font-black text-base sm:text-lg tracking-wide text-emerald-400">كاشدار</span>
+              <span class="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.2 rounded font-mono">CASHDAR</span>
             </div>
-            <p id="top-store-name" class="text-xs text-slate-400 truncate max-w-[150px] sm:max-w-xs">يرجى تسجيل المحل</p>
+            <p id="top-store-name" class="text-[11px] text-slate-400 truncate max-w-[120px] sm:max-w-xs leading-none">يرجى تسجيل المحل</p>
           </div>
         </div>
 
-        <!-- Center: Current Branch & Employee Profile Info -->
-        <div class="hidden md:flex items-center gap-3">
-          <button onclick="navigateTo('branches')" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700/80 px-3 py-1.5 rounded-lg border border-slate-700 text-xs transition">
+        <!-- Center: Current Branch & Employee Profile Info (Desktop) -->
+        <div class="hidden md:flex items-center gap-2">
+          <button onclick="navigateTo('branches')" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 text-xs transition">
             <i class="fa-solid fa-store text-emerald-400"></i>
             <span class="text-slate-400">الفرع:</span>
             <span id="active-branch-name" class="font-bold text-white">الفرع الرئيسي</span>
           </button>
 
-          <button onclick="openModal('switch-user-modal')" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700/80 px-3 py-1.5 rounded-lg border border-slate-700 text-xs transition">
+          <button onclick="openModal('switch-user-modal')" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 text-xs transition">
             <i class="fa-solid fa-user-shield text-amber-400"></i>
             <span class="text-slate-400">المستخدم:</span>
             <span id="active-user-name" class="font-bold text-white">المالك (المدير العام)</span>
@@ -1213,114 +1247,124 @@
         </div>
 
         <!-- Right: Actions & Subscription Alert -->
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1.5 sm:gap-2">
           <!-- Subscription Countdown Button -->
-          <button onclick="openModal('subscription-modal')" id="top-subscription-btn" class="flex items-center gap-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 px-3 py-1.5 rounded-lg text-xs font-medium transition">
+          <button onclick="openModal('subscription-modal')" id="top-subscription-btn" class="flex items-center gap-1 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-medium transition shrink-0">
             <i class="fa-regular fa-clock animate-pulse"></i>
-            <span id="trial-counter-btn">الاشتراك (72 س)</span>
+            <span id="trial-counter-btn">72:00:00</span>
           </button>
 
-          <!-- Branch Switcher -->
+          <!-- Branch Switcher (Mobile icon) -->
           <button onclick="navigateTo('branches')" title="إدارة الفروع" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
-            <i class="fa-solid fa-code-branch"></i>
+            <i class="fa-solid fa-code-branch text-sm"></i>
           </button>
 
-          <!-- Switch User -->
+          <!-- Switch User (Mobile icon) -->
           <button onclick="openModal('switch-user-modal')" title="تبديل المستخدم" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
-            <i class="fa-solid fa-users"></i>
+            <i class="fa-solid fa-users text-sm"></i>
           </button>
         </div>
 
       </div>
     </div>
 
-    <!-- Trial Banner -->
-    <div id="trial-banner" class="bg-gradient-to-r from-amber-600 to-orange-600 px-4 py-1.5 text-xs text-white flex items-center justify-between shadow-inner">
-      <div class="flex items-center gap-2">
+    <!-- 72-Hour Trial Banner -->
+    <div id="trial-banner" class="bg-gradient-to-r from-amber-600 to-orange-600 px-3 py-1 text-[11px] text-white flex items-center justify-between shadow-inner">
+      <div class="flex items-center gap-1.5 truncate">
         <i class="fa-solid fa-hourglass-half"></i>
-        <span>أنت في الفترة التجريبية (72 ساعة مجانية). متبقي: <b id="trial-banner-timer" class="font-mono font-bold">72:00:00</b></span>
+        <span>فترة تجريبية مجانية: <b id="trial-banner-timer" class="font-mono font-bold">72:00:00</b></span>
       </div>
-      <button onclick="openModal('subscription-modal')" class="underline hover:text-amber-100 font-bold">ترقية الحساب الآن &larr;</button>
+      <button onclick="openModal('subscription-modal')" class="underline hover:text-amber-100 font-bold shrink-0 mr-2">ترقية الحساب &larr;</button>
     </div>
   </header>
 
   <!-- =============================== -->
   <!-- MAIN LAYOUT (Sidebar + Screens) -->
   <!-- =============================== -->
-  <div class="flex-1 flex overflow-hidden max-w-7xl w-full mx-auto p-2 sm:p-4 gap-4">
+  <div class="flex-1 flex overflow-hidden max-w-7xl w-full mx-auto p-2 sm:p-4 gap-3 pb-16 md:pb-4">
     
-    <!-- Sidebar Navigation -->
-    <nav class="w-16 sm:w-56 bg-white rounded-2xl shadow-sm border border-slate-200/80 p-3 flex flex-col justify-between shrink-0">
+    <!-- Sidebar Navigation (Desktop) -->
+    <nav class="hidden md:flex w-52 bg-white rounded-2xl shadow-sm border border-slate-200/80 p-3 flex-col justify-between shrink-0">
       <div class="space-y-1.5">
         <button onclick="navigateTo('pos')" id="nav-pos" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand-600 transition shadow-sm">
-          <i class="fa-solid fa-cart-shopping text-lg w-5 text-center"></i>
-          <span class="hidden sm:inline">نقطة البيع</span>
+          <i class="fa-solid fa-cart-shopping text-base w-5 text-center"></i>
+          <span>نقطة البيع</span>
         </button>
 
         <button onclick="navigateTo('products')" id="nav-products" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
-          <i class="fa-solid fa-boxes-stacked text-lg w-5 text-center"></i>
-          <span class="hidden sm:inline">المخزون والمنتجات</span>
+          <i class="fa-solid fa-boxes-stacked text-base w-5 text-center"></i>
+          <span>المخزون والمنتجات</span>
         </button>
 
         <!-- Manager Restricted Section -->
         <div id="manager-nav-group" class="space-y-1.5 pt-2 border-t border-slate-100">
           <button onclick="navigateTo('expenses')" id="nav-expenses" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
-            <i class="fa-solid fa-receipt text-lg w-5 text-center"></i>
-            <span class="hidden sm:inline">المصروفات</span>
+            <i class="fa-solid fa-receipt text-base w-5 text-center"></i>
+            <span>المصروفات</span>
           </button>
 
           <button onclick="navigateTo('reports')" id="nav-reports" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
-            <i class="fa-solid fa-chart-line text-lg w-5 text-center"></i>
-            <span class="hidden sm:inline">التقارير والأرباح</span>
+            <i class="fa-solid fa-chart-line text-base w-5 text-center"></i>
+            <span>التقارير والأرباح</span>
           </button>
 
           <button onclick="navigateTo('branches')" id="nav-branches" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
-            <i class="fa-solid fa-store text-lg w-5 text-center"></i>
-            <span class="hidden sm:inline">إدارة الفروع</span>
+            <i class="fa-solid fa-store text-base w-5 text-center"></i>
+            <span>إدارة الفروع</span>
           </button>
 
           <button onclick="navigateTo('employees')" id="nav-employees" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
-            <i class="fa-solid fa-user-gear text-lg w-5 text-center"></i>
-            <span class="hidden sm:inline">الموظفين والصلاحيات</span>
+            <i class="fa-solid fa-user-gear text-base w-5 text-center"></i>
+            <span>الموظفين والصلاحيات</span>
           </button>
         </div>
       </div>
 
-      <!-- Settings & Store Profile -->
+      <!-- Settings & Subscription -->
       <div class="space-y-1.5 pt-3 border-t border-slate-100">
         <button onclick="navigateTo('settings')" id="nav-settings" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
-          <i class="fa-solid fa-sliders text-lg w-5 text-center"></i>
-          <span class="hidden sm:inline">بيانات المتجر</span>
+          <i class="fa-solid fa-sliders text-base w-5 text-center"></i>
+          <span>بيانات المتجر</span>
         </button>
 
         <button onclick="openModal('subscription-modal')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-amber-600 hover:bg-amber-50 transition">
-          <i class="fa-solid fa-crown text-lg w-5 text-center"></i>
-          <span class="hidden sm:inline">الاشتراك والدفع</span>
+          <i class="fa-solid fa-crown text-base w-5 text-center"></i>
+          <span>الاشتراك والدفع</span>
         </button>
       </div>
     </nav>
 
     <!-- Main Content Container -->
-    <main class="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200/80 flex flex-col overflow-hidden relative">
+    <main class="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200/80 flex flex-col overflow-hidden relative min-w-0">
 
       <!-- SCREEN 1: POS (نقطة البيع) -->
-      <div id="screen-pos" class="screen-content flex-1 flex flex-col md:flex-row overflow-hidden">
-        <div class="flex-1 flex flex-col p-3 sm:p-4 overflow-hidden border-b md:border-b-0 md:border-l border-slate-200">
+      <div id="screen-pos" class="screen-content flex-1 flex flex-col lg:flex-row overflow-hidden">
+        <div class="flex-1 flex flex-col p-2.5 sm:p-4 overflow-hidden border-b lg:border-b-0 lg:border-l border-slate-200">
           
-          <!-- POS Search & Actions Bar -->
-          <div class="space-y-3 mb-3">
-            <div class="flex items-center gap-2">
+          <!-- Search & Barcode Button Bar -->
+          <div class="space-y-2 mb-2 sm:mb-3">
+            <div class="flex items-center gap-1.5 sm:gap-2">
               <div class="relative flex-1">
-                <i class="fa-solid fa-magnifying-glass absolute right-3 top-3.5 text-slate-400"></i>
-                <input type="text" id="pos-search" oninput="renderPosProducts()" placeholder="ابحث باسم المنتج أو الباركود..." class="w-full bg-slate-50 border border-slate-200 pr-10 pl-3 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                <i class="fa-solid fa-magnifying-glass absolute right-3 top-3 text-slate-400 text-xs"></i>
+                <input type="text" id="pos-search" oninput="renderPosProducts()" placeholder="ابحث باسم المنتج أو الباركود..." class="w-full bg-slate-50 border border-slate-200 pr-9 pl-3 py-2 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
               </div>
 
-              <button onclick="startBarcodeScan()" class="bg-dark-900 hover:bg-dark-800 text-white px-3.5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow transition active:scale-95" title="مسح باركود بالكاميرا">
+              <!-- Barcode Scanner Button (Camera) -->
+              <button 
+                onclick="startBarcodeScanner()" 
+                class="bg-dark-900 hover:bg-dark-800 text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow transition active:scale-95 shrink-0" 
+                title="مسح الباركود بالكاميرا"
+              >
                 <i class="fa-solid fa-barcode text-emerald-400"></i>
-                <span class="hidden sm:inline">مسح باركود</span>
+                <span class="inline">مسح 📷</span>
               </button>
 
-              <button onclick="openAddProductModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow transition active:scale-95" title="إضافة صنف جديد">
+              <!-- Add Product Button -->
+              <button 
+                onclick="openAddProductModal()" 
+                class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow transition active:scale-95 shrink-0" 
+                title="إضافة صنف جديد"
+              >
                 <i class="fa-solid fa-plus"></i>
                 <span class="hidden sm:inline">إضافة صنف</span>
               </button>
@@ -1328,55 +1372,55 @@
           </div>
 
           <!-- POS Products Grid -->
-          <div id="pos-products-grid" class="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 p-1">
+          <div id="pos-products-grid" class="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-2.5 p-0.5">
           </div>
         </div>
 
-        <!-- POS Cart Sidebar -->
-        <div class="w-full md:w-80 lg:w-96 flex flex-col bg-slate-50/70 p-3 sm:p-4 shrink-0">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <!-- POS Cart Section -->
+        <div class="w-full lg:w-80 xl:w-96 flex flex-col bg-slate-50/80 p-2.5 sm:p-4 shrink-0 max-h-[50vh] lg:max-h-none">
+          <div class="flex items-center justify-between pb-2 sm:pb-3 border-b border-slate-200">
             <div class="flex items-center gap-2">
               <i class="fa-solid fa-receipt text-brand-600"></i>
-              <h3 class="font-bold text-slate-800">فاتورة البيع</h3>
-              <span id="cart-items-count" class="text-xs bg-brand-100 text-brand-700 font-bold px-2 py-0.5 rounded-full">0 أصناف</span>
+              <h3 class="font-bold text-slate-800 text-xs sm:text-sm">فاتورة البيع</h3>
+              <span id="cart-items-count" class="text-[11px] bg-brand-100 text-brand-700 font-bold px-2 py-0.5 rounded-full">0 أصناف</span>
             </div>
-            <button onclick="clearCart()" class="text-xs text-rose-500 hover:text-rose-700 font-semibold transition">إفراغ السلة</button>
+            <button onclick="clearCart()" class="text-xs text-rose-500 hover:text-rose-700 font-semibold transition">إفراغ</button>
           </div>
 
-          <div id="cart-items-list" class="flex-1 overflow-y-auto py-3 space-y-2">
+          <div id="cart-items-list" class="flex-1 overflow-y-auto py-2 space-y-1.5 sm:space-y-2 min-h-[90px]">
           </div>
 
           <!-- Cart Totals & Checkout -->
-          <div class="pt-3 border-t border-slate-200 space-y-2.5">
+          <div class="pt-2 sm:pt-3 border-t border-slate-200 space-y-2">
             <div class="flex justify-between text-xs text-slate-500">
               <span>المجموع الفرعي:</span>
-              <span id="cart-subtotal" class="font-bold">0 جنيه</span>
+              <span id="cart-subtotal" class="font-bold font-mono">0 جنيه</span>
             </div>
             
             <div class="flex items-center justify-between text-xs">
               <span class="text-slate-500">خصم (جنيه):</span>
-              <input type="number" id="cart-discount" oninput="calculateCartTotal()" min="0" value="0" class="w-24 bg-white border border-slate-200 px-2 py-1 rounded text-left font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500">
+              <input type="number" id="cart-discount" oninput="calculateCartTotal()" min="0" value="0" class="w-20 bg-white border border-slate-200 px-2 py-1 rounded text-left font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono">
             </div>
 
-            <div class="flex justify-between items-baseline pt-2 border-t border-slate-200">
-              <span class="font-bold text-slate-800 text-sm">الإجمالي المطلوب:</span>
-              <span id="cart-grand-total" class="font-black text-xl text-brand-700 font-mono">0.00 جنيه</span>
+            <div class="flex justify-between items-baseline pt-1 border-t border-slate-200">
+              <span class="font-bold text-slate-800 text-xs sm:text-sm">الإجمالي المطلوب:</span>
+              <span id="cart-grand-total" class="font-black text-lg sm:text-xl text-brand-700 font-mono">0.00 جنيه</span>
             </div>
 
             <!-- Payment Methods -->
-            <div class="grid grid-cols-3 gap-1.5 text-xs font-bold pt-1">
-              <button onclick="selectPaymentMethod('cash')" id="pay-cash-btn" class="pay-method-btn bg-brand-600 text-white py-2 rounded-lg text-center border border-brand-600 transition">
-                <i class="fa-solid fa-money-bill-wave ml-1"></i> كاش
+            <div class="grid grid-cols-3 gap-1 text-xs font-bold pt-1">
+              <button onclick="selectPaymentMethod('cash')" id="pay-cash-btn" class="pay-method-btn bg-brand-600 text-white py-1.5 rounded-lg text-center border border-brand-600 transition">
+                كاش
               </button>
-              <button onclick="selectPaymentMethod('bank')" id="pay-bank-btn" class="pay-method-btn bg-white hover:bg-slate-100 text-slate-700 py-2 rounded-lg text-center border border-slate-200 transition">
-                <i class="fa-solid fa-mobile-screen ml-1"></i> بنكك
+              <button onclick="selectPaymentMethod('bank')" id="pay-bank-btn" class="pay-method-btn bg-white hover:bg-slate-100 text-slate-700 py-1.5 rounded-lg text-center border border-slate-200 transition">
+                بنكك
               </button>
-              <button onclick="selectPaymentMethod('credit')" id="pay-credit-btn" class="pay-method-btn bg-white hover:bg-slate-100 text-slate-700 py-2 rounded-lg text-center border border-slate-200 transition">
-                <i class="fa-solid fa-clock ml-1"></i> آجل
+              <button onclick="selectPaymentMethod('credit')" id="pay-credit-btn" class="pay-method-btn bg-white hover:bg-slate-100 text-slate-700 py-1.5 rounded-lg text-center border border-slate-200 transition">
+                آجل
               </button>
             </div>
 
-            <button onclick="completeSale()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition active:scale-98">
+            <button onclick="completeSale()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-2.5 sm:py-3 rounded-xl shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition active:scale-98 text-xs sm:text-sm">
               <i class="fa-solid fa-check"></i>
               <span>إتمام البيع وطباعة الفاتورة</span>
             </button>
@@ -1385,27 +1429,27 @@
       </div>
 
       <!-- SCREEN 2: PRODUCTS (المخزون والمنتجات) -->
-      <div id="screen-products" class="screen-content flex-1 p-4 overflow-y-auto hidden">
-        <div class="flex items-center justify-between mb-4">
+      <div id="screen-products" class="screen-content flex-1 p-3 sm:p-4 overflow-y-auto hidden">
+        <div class="flex items-center justify-between mb-3">
           <div>
-            <h2 class="text-lg font-bold text-slate-800">إدارة المنتجات والمخزون</h2>
-            <p class="text-xs text-slate-500">دعم كافة الوحدات السودانية المعتمدة (قطعة، باكت، كرتونة، دستة، كيلو، شوال...)</p>
+            <h2 class="text-base sm:text-lg font-bold text-slate-800">إدارة المنتجات والمخزون</h2>
+            <p class="text-[11px] sm:text-xs text-slate-500">دعم كافة الوحدات السودانية المعتمدة (قطعة، باكت، كرتونة، دستة، كيلو، شوال...)</p>
           </div>
-          <button onclick="openAddProductModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow">
-            <i class="fa-solid fa-plus"></i> إضافة منتج جديد
+          <button onclick="openAddProductModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow">
+            <i class="fa-solid fa-plus"></i> <span>إضافة منتج</span>
           </button>
         </div>
         <div class="overflow-x-auto border border-slate-200 rounded-xl">
           <table class="w-full text-right text-xs">
             <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
               <tr>
-                <th class="p-3">اسم المنتج</th>
-                <th class="p-3">الباركود</th>
-                <th class="p-3">الوحدة</th>
-                <th class="p-3">سعر الشراء (التكلفة)</th>
-                <th class="p-3">سعر البيع</th>
-                <th class="p-3">المخزون الحالي</th>
-                <th class="p-3 text-center">إجراءات</th>
+                <th class="p-2.5 sm:p-3">اسم المنتج</th>
+                <th class="p-2.5 sm:p-3">الباركود</th>
+                <th class="p-2.5 sm:p-3">الوحدة</th>
+                <th class="p-2.5 sm:p-3">التكلفة</th>
+                <th class="p-2.5 sm:p-3">البيع</th>
+                <th class="p-2.5 sm:p-3">المخزون</th>
+                <th class="p-2.5 sm:p-3 text-center">حذف</th>
               </tr>
             </thead>
             <tbody id="products-table-body" class="divide-y divide-slate-100">
@@ -1415,40 +1459,40 @@
       </div>
 
       <!-- SCREEN 3: EXPENSES (المصروفات) -->
-      <div id="screen-expenses" class="screen-content flex-1 p-4 overflow-y-auto hidden">
-        <div class="flex items-center justify-between mb-4">
+      <div id="screen-expenses" class="screen-content flex-1 p-3 sm:p-4 overflow-y-auto hidden">
+        <div class="flex items-center justify-between mb-3">
           <div>
-            <h2 class="text-lg font-bold text-slate-800">إدارة المصروفات</h2>
-            <p class="text-xs text-slate-500">تسجيل ومتابعة المنصرفات (إيجار، كهرباء، مرتبات، ترحيل، نثرية)</p>
+            <h2 class="text-base sm:text-lg font-bold text-slate-800">إدارة المصروفات</h2>
+            <p class="text-[11px] sm:text-xs text-slate-500">تسجيل ومتابعة المنصرفات (إيجار، كهرباء، مرتبات، ترحيل، نثرية)</p>
           </div>
-          <button onclick="openAddExpenseModal()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow">
-            <i class="fa-solid fa-plus"></i> إضافة مصروف جديد
+          <button onclick="openAddExpenseModal()" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow">
+            <i class="fa-solid fa-plus"></i> <span>إضافة مصروف</span>
           </button>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-          <div class="bg-rose-50 border border-rose-100 p-3.5 rounded-xl">
-            <span class="text-xs text-rose-600 font-semibold">إجمالي مصروفات اليوم:</span>
-            <div id="expenses-today-sum" class="text-xl font-black text-rose-700 mt-1 font-mono">0.00 جنيه</div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-3">
+          <div class="bg-rose-50 border border-rose-100 p-3 rounded-xl">
+            <span class="text-[11px] text-rose-600 font-semibold">مصروفات اليوم:</span>
+            <div id="expenses-today-sum" class="text-lg font-black text-rose-700 mt-0.5 font-mono">0.00 جنيه</div>
           </div>
-          <div class="bg-amber-50 border border-amber-100 p-3.5 rounded-xl">
-            <span class="text-xs text-amber-600 font-semibold">إجمالي كافة المصروفات:</span>
-            <div id="expenses-month-sum" class="text-xl font-black text-amber-700 mt-1 font-mono">0.00 جنيه</div>
+          <div class="bg-amber-50 border border-amber-100 p-3 rounded-xl">
+            <span class="text-[11px] text-amber-600 font-semibold">إجمالي المصروفات:</span>
+            <div id="expenses-month-sum" class="text-lg font-black text-amber-700 mt-0.5 font-mono">0.00 جنيه</div>
           </div>
-          <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
-            <span class="text-xs text-slate-600 font-semibold">عدد القيود المسجلة:</span>
-            <div id="expenses-count" class="text-xl font-black text-slate-800 mt-1 font-mono">0</div>
+          <div class="bg-slate-50 border border-slate-200 p-3 rounded-xl">
+            <span class="text-[11px] text-slate-600 font-semibold">عدد القيود:</span>
+            <div id="expenses-count" class="text-lg font-black text-slate-800 mt-0.5 font-mono">0</div>
           </div>
         </div>
         <div class="overflow-x-auto border border-slate-200 rounded-xl">
           <table class="w-full text-right text-xs">
             <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
               <tr>
-                <th class="p-3">التاريخ والوقت</th>
-                <th class="p-3">بند المصروف</th>
-                <th class="p-3">البيان والتفاصيل</th>
-                <th class="p-3">المبلغ (جنيه)</th>
-                <th class="p-3">الموظف</th>
-                <th class="p-3 text-center">حذف</th>
+                <th class="p-2.5 sm:p-3">التاريخ</th>
+                <th class="p-2.5 sm:p-3">البند</th>
+                <th class="p-2.5 sm:p-3">البيان</th>
+                <th class="p-2.5 sm:p-3">المبلغ</th>
+                <th class="p-2.5 sm:p-3">الموظف</th>
+                <th class="p-2.5 sm:p-3 text-center">حذف</th>
               </tr>
             </thead>
             <tbody id="expenses-table-body" class="divide-y divide-slate-100">
@@ -1458,41 +1502,41 @@
       </div>
 
       <!-- SCREEN 4: REPORTS (التقارير والأرباح) -->
-      <div id="screen-reports" class="screen-content flex-1 p-4 overflow-y-auto hidden">
-        <div class="mb-4">
-          <h2 class="text-lg font-bold text-slate-800">التقارير والأرباح الشاملة</h2>
-          <p class="text-xs text-slate-500">حساب فوري للأرباح الصافية والمجملة بعد خصم التكاليف والمنصرفات</p>
+      <div id="screen-reports" class="screen-content flex-1 p-3 sm:p-4 overflow-y-auto hidden">
+        <div class="mb-3">
+          <h2 class="text-base sm:text-lg font-bold text-slate-800">التقارير والأرباح الشاملة</h2>
+          <p class="text-[11px] sm:text-xs text-slate-500">حساب فوري للأرباح الصافية والمجملة بعد خصم التكاليف والمنصرفات</p>
         </div>
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-          <div class="bg-emerald-50 border border-emerald-100 p-3.5 rounded-2xl">
-            <span class="text-xs font-semibold text-emerald-600">إجمالي المبيعات</span>
-            <div id="rep-total-sales" class="text-xl font-black text-emerald-800 mt-1 font-mono">0 جنيه</div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
+          <div class="bg-emerald-50 border border-emerald-100 p-3 rounded-xl">
+            <span class="text-[11px] font-semibold text-emerald-600">إجمالي المبيعات</span>
+            <div id="rep-total-sales" class="text-lg font-black text-emerald-800 mt-0.5 font-mono">0 جنيه</div>
           </div>
-          <div class="bg-rose-50 border border-rose-100 p-3.5 rounded-2xl">
-            <span class="text-xs font-semibold text-rose-600">إجمالي المصروفات</span>
-            <div id="rep-total-expenses" class="text-xl font-black text-rose-800 mt-1 font-mono">0 جنيه</div>
+          <div class="bg-rose-50 border border-rose-100 p-3 rounded-xl">
+            <span class="text-[11px] font-semibold text-rose-600">إجمالي المصروفات</span>
+            <div id="rep-total-expenses" class="text-lg font-black text-rose-800 mt-0.5 font-mono">0 جنيه</div>
           </div>
-          <div class="bg-blue-50 border border-blue-100 p-3.5 rounded-2xl">
-            <span class="text-xs font-semibold text-blue-600">المجمل الربحي (Gross)</span>
-            <div id="rep-gross-profit" class="text-xl font-black text-blue-800 mt-1 font-mono">0 جنيه</div>
+          <div class="bg-blue-50 border border-blue-100 p-3 rounded-xl">
+            <span class="text-[11px] font-semibold text-blue-600">المجمل الربحي</span>
+            <div id="rep-gross-profit" class="text-lg font-black text-blue-800 mt-0.5 font-mono">0 جنيه</div>
           </div>
-          <div class="bg-brand-50 border border-brand-200 p-3.5 rounded-2xl shadow-sm">
-            <span class="text-xs font-bold text-brand-700">صافي الربح الفعلي (Net)</span>
-            <div id="rep-net-profit" class="text-2xl font-black text-brand-800 mt-1 font-mono">0 جنيه</div>
+          <div class="bg-brand-50 border border-brand-200 p-3 rounded-xl shadow-xs">
+            <span class="text-[11px] font-bold text-brand-700">صافي الربح الفعلي</span>
+            <div id="rep-net-profit" class="text-xl font-black text-brand-800 mt-0.5 font-mono">0 جنيه</div>
           </div>
         </div>
-        <h3 class="font-bold text-sm text-slate-700 mb-2">سجل الفواتير والمبيعات الأخيرة</h3>
+        <h3 class="font-bold text-xs sm:text-sm text-slate-700 mb-2">سجل الفواتير والمبيعات</h3>
         <div class="overflow-x-auto border border-slate-200 rounded-xl">
           <table class="w-full text-right text-xs">
             <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
               <tr>
-                <th class="p-3">رقم الفاتورة</th>
-                <th class="p-3">التاريخ والوقت</th>
-                <th class="p-3">الفرع</th>
-                <th class="p-3">الكاشير</th>
-                <th class="p-3">الإجمالي (جنيه)</th>
-                <th class="p-3">طريقة الدفع</th>
-                <th class="p-3 text-center">معاينة</th>
+                <th class="p-2.5 sm:p-3">الفاتورة</th>
+                <th class="p-2.5 sm:p-3">التاريخ</th>
+                <th class="p-2.5 sm:p-3">الفرع</th>
+                <th class="p-2.5 sm:p-3">الكاشير</th>
+                <th class="p-2.5 sm:p-3">الإجمالي</th>
+                <th class="p-2.5 sm:p-3">الدفع</th>
+                <th class="p-2.5 sm:p-3 text-center">عرض</th>
               </tr>
             </thead>
             <tbody id="sales-history-body" class="divide-y divide-slate-100">
@@ -1502,14 +1546,14 @@
       </div>
 
       <!-- SCREEN 5: BRANCHES (إدارة الفروع) -->
-      <div id="screen-branches" class="screen-content flex-1 p-4 overflow-y-auto hidden">
-        <div class="flex items-center justify-between mb-4">
+      <div id="screen-branches" class="screen-content flex-1 p-3 sm:p-4 overflow-y-auto hidden">
+        <div class="flex items-center justify-between mb-3">
           <div>
-            <h2 class="text-lg font-bold text-slate-800">إدارة فروع المتجر</h2>
-            <p class="text-xs text-slate-500">فروع متعددة تتبع حساب رئيسي واحد مع مراقبة مستقلة وموحدة</p>
+            <h2 class="text-base sm:text-lg font-bold text-slate-800">إدارة فروع المتجر</h2>
+            <p class="text-[11px] sm:text-xs text-slate-500">فروع متعددة تتبع حساب رئيسي واحد</p>
           </div>
-          <button onclick="openAddBranchModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow">
-            <i class="fa-solid fa-plus"></i> إضافة فرع جديد
+          <button onclick="openAddBranchModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow">
+            <i class="fa-solid fa-plus"></i> إضافة فرع
           </button>
         </div>
         <div id="branches-list-cards" class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1517,14 +1561,14 @@
       </div>
 
       <!-- SCREEN 6: EMPLOYEES (الموظفين والصلاحيات) -->
-      <div id="screen-employees" class="screen-content flex-1 p-4 overflow-y-auto hidden">
-        <div class="flex items-center justify-between mb-4">
+      <div id="screen-employees" class="screen-content flex-1 p-3 sm:p-4 overflow-y-auto hidden">
+        <div class="flex items-center justify-between mb-3">
           <div>
-            <h2 class="text-lg font-bold text-slate-800">إدارة الموظفين والصلاحيات</h2>
-            <p class="text-xs text-slate-500">حماية خصوصية أرباحك: الكاشير لا يرى المصروفات ولا أرباح المتجر</p>
+            <h2 class="text-base sm:text-lg font-bold text-slate-800">إدارة الموظفين والصلاحيات</h2>
+            <p class="text-[11px] sm:text-xs text-slate-500">حماية الأرباح: الكاشير لا يرى المصروفات ولا أرباح المتجر</p>
           </div>
-          <button onclick="openAddEmployeeModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow">
-            <i class="fa-solid fa-user-plus"></i> إضافة موظف جديد
+          <button onclick="openAddEmployeeModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow">
+            <i class="fa-solid fa-user-plus"></i> إضافة موظف
           </button>
         </div>
         <div id="employees-list-cards" class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1532,33 +1576,33 @@
       </div>
 
       <!-- SCREEN 7: SETTINGS (بيانات التاجر) -->
-      <div id="screen-settings" class="screen-content flex-1 p-4 overflow-y-auto hidden">
-        <div class="max-w-2xl mx-auto space-y-5">
-          <div class="bg-brand-50 border border-brand-200 rounded-2xl p-4">
-            <h2 class="text-base font-bold text-brand-900 mb-1">تسجيل وتعديل بيانات المتجر</h2>
-            <p class="text-xs text-brand-700">تظهر هذه المعلومات في أعلى الفواتير المطبوعة وعلى حسابك السحابي في Supabase</p>
+      <div id="screen-settings" class="screen-content flex-1 p-3 sm:p-4 overflow-y-auto hidden">
+        <div class="max-w-xl mx-auto space-y-4">
+          <div class="bg-brand-50 border border-brand-200 rounded-2xl p-3.5">
+            <h2 class="text-sm sm:text-base font-bold text-brand-900 mb-0.5">تسجيل وتعديل بيانات المتجر</h2>
+            <p class="text-xs text-brand-700">تظهر هذه المعلومات في أعلى الفواتير المطبوعة وتُحفظ سحابياً في Supabase</p>
           </div>
           
-          <form onsubmit="saveMerchantSettings(event)" class="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+          <form onsubmit="saveMerchantSettings(event)" class="space-y-3 bg-slate-50 p-3.5 sm:p-4 rounded-2xl border border-slate-200">
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1">اسم المحل / المتجر *</label>
-              <input type="text" id="setting-store-name" required placeholder="مثلاً: سوبر ماركت البركة" class="w-full bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+              <input type="text" id="setting-store-name" required placeholder="مثلاً: سوبر ماركت البركة" class="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">رقم الهاتف السوداني *</label>
-                <input type="tel" id="setting-store-phone" required placeholder="09xxxxxxx أو 01xxxxxxx" class="w-full bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                <input type="tel" id="setting-store-phone" required placeholder="09xxxxxxx أو 01xxxxxxx" class="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:outline-none">
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">البريد الإلكتروني</label>
-                <input type="email" id="setting-store-email" placeholder="example@gmail.com" class="w-full bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                <input type="email" id="setting-store-email" placeholder="example@gmail.com" class="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
               </div>
             </div>
 
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1">نوع النشاط التجاري</label>
-              <select id="setting-store-type" class="w-full bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-brand-500 focus:outline-none">
+              <select id="setting-store-type" class="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-brand-500 focus:outline-none">
                 <option value="بقالة وسوبرماركت">بقالة ومواد غذائية (سوبرماركت)</option>
                 <option value="صيدلية">صيدلية وأدوية</option>
                 <option value="إلكترونيات وموبايلات">إلكترونيات وموبايلات</option>
@@ -1570,10 +1614,10 @@
 
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1">عنوان المتجر / المدينة</label>
-              <input type="text" id="setting-store-address" placeholder="الخرطوم / أم درمان / بحري / بورتسودان..." class="w-full bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+              <input type="text" id="setting-store-address" placeholder="الخرطوم / أم درمان / بحري / بورتسودان..." class="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
             </div>
 
-            <button type="submit" id="save-settings-btn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl text-xs transition shadow-md shadow-brand-600/30 flex items-center justify-center gap-2">
+            <button type="submit" id="save-settings-btn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md shadow-brand-600/30 flex items-center justify-center gap-2">
               <i class="fa-solid fa-floppy-disk"></i>
               <span>حفظ البيانات ومزامنة المتجر مع Supabase (تفعيل التجربة)</span>
             </button>
@@ -1584,16 +1628,80 @@
     </main>
   </div>
 
-  <!-- =============================== -->
-  <!-- MODALS                          -->
-  <!-- =============================== -->
+  <!-- ===================================== -->
+  <!-- MOBILE BOTTOM NAVIGATION BAR          -->
+  <!-- ===================================== -->
+  <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 px-2 py-1.5 flex justify-around items-center shadow-lg">
+    <button onclick="navigateTo('pos')" id="mob-nav-pos" class="mobile-nav-btn text-brand-600 font-black flex flex-col items-center gap-0.5 text-[10px]">
+      <i class="fa-solid fa-cash-register text-base"></i>
+      <span>الكاشير</span>
+    </button>
+    <button onclick="startBarcodeScanner()" class="mobile-nav-btn text-slate-700 flex flex-col items-center gap-0.5 text-[10px] -mt-4 bg-brand-600 text-white w-11 h-11 rounded-full items-center justify-center shadow-lg">
+      <i class="fa-solid fa-camera text-base"></i>
+      <span class="sr-only">مسح</span>
+    </button>
+    <button onclick="navigateTo('products')" id="mob-nav-products" class="mobile-nav-btn text-slate-500 flex flex-col items-center gap-0.5 text-[10px]">
+      <i class="fa-solid fa-boxes-stacked text-base"></i>
+      <span>المخزون</span>
+    </button>
+    <button onclick="navigateTo('expenses')" id="mob-nav-expenses" class="mobile-nav-btn text-slate-500 flex flex-col items-center gap-0.5 text-[10px]">
+      <i class="fa-solid fa-receipt text-base"></i>
+      <span>المصروفات</span>
+    </button>
+    <button onclick="navigateTo('reports')" id="mob-nav-reports" class="mobile-nav-btn text-slate-500 flex flex-col items-center gap-0.5 text-[10px]">
+      <i class="fa-solid fa-chart-line text-base"></i>
+      <span>التقارير</span>
+    </button>
+    <button onclick="navigateTo('settings')" id="mob-nav-settings" class="mobile-nav-btn text-slate-500 flex flex-col items-center gap-0.5 text-[10px]">
+      <i class="fa-solid fa-sliders text-base"></i>
+      <span>المتجر</span>
+    </button>
+  </div>
 
-  <!-- 1. Subscription & Payment Modal -->
-  <div id="subscription-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative max-h-[95vh] overflow-y-auto">
+  <!-- ===================================== -->
+  <!-- MODALS                                -->
+  <!-- ===================================== -->
+
+  <!-- 1. Barcode Scanner Modal (html5-qrcode with Camera) -->
+  <div id="barcode-scanner-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-4 shadow-2xl relative text-center">
+      <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+        <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+          <i class="fa-solid fa-camera text-brand-600"></i>
+          <span>قارئ الباركود عبر الكاميرا</span>
+        </h4>
+        <button onclick="stopBarcodeScanner()" class="text-slate-400 hover:text-slate-600 w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Video Scanner Container -->
+      <div class="relative w-full aspect-square bg-slate-950 rounded-2xl overflow-hidden mb-3 flex items-center justify-center">
+        <div id="qr-reader" class="w-full h-full"></div>
+      </div>
+
+      <div class="space-y-2">
+        <p class="text-xs text-slate-500">وجه الكاميرا نحو باركود الصنف أو اكتبه يدوياً:</p>
+        <div class="flex gap-1.5">
+          <input type="text" id="barcode-manual-box" placeholder="رقم الباركود..." class="flex-1 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-mono">
+          <button onclick="submitManualBarcodeFromModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-2 rounded-xl text-xs font-bold shrink-0">
+            إدخال
+          </button>
+        </div>
+      </div>
+
+      <button onclick="stopBarcodeScanner()" class="mt-3 w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2 rounded-xl">
+        إغلاق الكاميرا
+      </button>
+    </div>
+  </div>
+
+  <!-- 2. Subscription & Payment Modal -->
+  <div id="subscription-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl relative max-h-[95vh] overflow-y-auto">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100">
         <div class="flex items-center gap-2 text-amber-600 font-black">
-          <i class="fa-solid fa-crown text-lg"></i>
+          <i class="fa-solid fa-crown text-base sm:text-lg"></i>
           <span>الاشتراك وتفعيل ترخيص كاشدار</span>
         </div>
         <button onclick="closeModal('subscription-modal')" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
@@ -1601,37 +1709,37 @@
         </button>
       </div>
 
-      <div class="my-4 p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-xs text-amber-900 space-y-1">
+      <div class="my-3 p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-xs text-amber-900 space-y-1">
         <div class="flex justify-between items-center font-bold">
           <span>حالة الفترة التجريبية:</span>
           <span id="modal-sub-status" class="bg-amber-200 text-amber-800 px-2.5 py-0.5 rounded-full font-mono">سارية (72 ساعة)</span>
         </div>
-        <p class="text-amber-700 pt-1">استمتع بتجربة كافة مزايا البرنامج. يمكنك الترقية الآن للاستمرار دون انقطاع.</p>
+        <p class="text-amber-700 pt-0.5">يمكنك الترقية للاستمرار بدون انقطاع وتأمين بيانات مبيعاتك.</p>
       </div>
 
-      <div class="grid grid-cols-2 gap-3 mb-5">
-        <div onclick="selectPlan('monthly')" id="plan-monthly-card" class="plan-card border-2 border-brand-500 bg-brand-50/40 p-3.5 rounded-2xl cursor-pointer text-center transition">
+      <div class="grid grid-cols-2 gap-2.5 mb-4">
+        <div onclick="selectPlan('monthly')" id="plan-monthly-card" class="plan-card border-2 border-brand-500 bg-brand-50/40 p-3 rounded-2xl cursor-pointer text-center transition">
           <span class="text-xs font-bold text-slate-500">الاشتراك الشهري</span>
-          <div class="text-lg font-black text-brand-700 my-1 font-mono">50,000 <span class="text-xs font-normal">جنيه</span></div>
+          <div class="text-base sm:text-lg font-black text-brand-700 my-0.5 font-mono">50,000 <span class="text-xs font-normal">جنيه</span></div>
           <span class="text-[10px] bg-brand-200 text-brand-800 px-2 py-0.5 rounded-full font-bold">تجديد كل 30 يوم</span>
         </div>
 
-        <div onclick="selectPlan('annual')" id="plan-annual-card" class="plan-card border border-slate-200 bg-white p-3.5 rounded-2xl cursor-pointer text-center transition">
+        <div onclick="selectPlan('annual')" id="plan-annual-card" class="plan-card border border-slate-200 bg-white p-3 rounded-2xl cursor-pointer text-center transition">
           <span class="text-xs font-bold text-slate-500">الاشتراك السنوي</span>
-          <div class="text-lg font-black text-slate-800 my-1 font-mono">500,000 <span class="text-xs font-normal">جنيه</span></div>
+          <div class="text-base sm:text-lg font-black text-slate-800 my-0.5 font-mono">500,000 <span class="text-xs font-normal">جنيه</span></div>
           <span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">توفير شهرين مجاناً</span>
         </div>
       </div>
 
-      <!-- Bank Transfer Details -->
-      <div class="bg-slate-900 text-white p-4 rounded-2xl mb-4 space-y-2 text-xs">
-        <div class="text-amber-400 font-bold flex items-center gap-2">
+      <!-- Bank Transfer Details (Account 59189) -->
+      <div class="bg-slate-900 text-white p-3.5 rounded-2xl mb-3 space-y-2 text-xs">
+        <div class="text-amber-400 font-bold flex items-center gap-1.5">
           <i class="fa-solid fa-building-columns"></i>
-          <span>بيانات التحويل الرسمي لتفعيل كاشدار:</span>
+          <span>بيانات التحويل الرسمي (بنك الخرطوم - بنكك):</span>
         </div>
         <div class="flex justify-between items-center bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
           <div>
-            <div class="text-[11px] text-slate-400">رقم الحساب (بنك الخرطوم - بنكك):</div>
+            <div class="text-[11px] text-slate-400">رقم الحساب:</div>
             <div class="text-lg font-mono font-black text-emerald-400">59189</div>
           </div>
           <button type="button" onclick="navigator.clipboard.writeText('59189'); alert('تم نسخ رقم الحساب 59189');" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg text-slate-200 text-[11px] font-bold">
@@ -1644,18 +1752,18 @@
       </div>
 
       <!-- Payment Submission Form -->
-      <form id="payment-confirm-form" onsubmit="submitPaymentNotice(event)" class="space-y-3">
+      <form id="payment-confirm-form" onsubmit="submitPaymentNotice(event)" class="space-y-2.5">
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">آخر 4 أرقام من عملية التحويل (الرقم المرجعي) *</label>
-          <input type="text" id="pay-last-digits" required maxlength="4" placeholder="مثال: 9482" class="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl text-center font-mono text-base font-bold tracking-widest focus:ring-2 focus:ring-brand-500 focus:outline-none">
+          <label class="block text-xs font-bold text-slate-700 mb-1">آخر 4 أرقام من عملية التحويل *</label>
+          <input type="text" id="pay-last-digits" required maxlength="4" placeholder="مثال: 9482" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-center font-mono text-base font-bold tracking-widest focus:ring-2 focus:ring-brand-500 focus:outline-none">
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">رفع صورة إشعار التحويل (اختياري)</label>
-          <input type="file" id="pay-receipt-image" accept="image/*" class="w-full text-xs text-slate-500 file:mr-0 file:ml-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100">
+          <label class="block text-xs font-bold text-slate-700 mb-1">صورة إشعار التحويل (اختياري)</label>
+          <input type="file" id="pay-receipt-image" accept="image/*" class="w-full text-xs text-slate-500 file:mr-0 file:ml-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100">
         </div>
 
-        <button type="submit" id="submit-pay-btn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl text-xs transition shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2">
+        <button type="submit" id="submit-pay-btn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-2.5 sm:py-3 rounded-xl text-xs transition shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2">
           <i class="fa-solid fa-paper-plane"></i>
           <span>إرسال إشعار الدفع وحفظ الطلب في Supabase</span>
         </button>
@@ -1663,48 +1771,17 @@
     </div>
   </div>
 
-  <!-- 2. Pure Native Camera Barcode Modal (Zero external scripts) -->
-  <div id="barcode-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-sm w-full p-4 shadow-2xl relative text-center">
-      <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-        <h4 class="font-bold text-slate-800 text-sm">قارئ الباركود عبر الكاميرا</h4>
-        <button onclick="stopBarcodeScan()" class="text-slate-400 hover:text-slate-600 w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <div class="relative w-full aspect-square bg-black rounded-2xl overflow-hidden mb-3 flex items-center justify-center">
-        <video id="camera-stream-video" class="w-full h-full object-cover" playsinline autoplay muted></video>
-        <div class="scanner-laser pointer-events-none"></div>
-      </div>
-
-      <div class="space-y-2">
-        <p class="text-xs text-slate-500">وجه الكاميرا نحو باركود السلعة أو أدخله يدوياً:</p>
-        <div class="flex gap-1.5">
-          <input type="text" id="barcode-manual-box" placeholder="رقم الباركود..." class="flex-1 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-mono">
-          <button onclick="submitManualBarcodeFromModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-2 rounded-xl text-xs font-bold">
-            إدخال
-          </button>
-        </div>
-      </div>
-
-      <button onclick="stopBarcodeScan()" class="mt-3 w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2.5 rounded-xl">
-        إغلاق
-      </button>
-    </div>
-  </div>
-
   <!-- 3. Add Product Modal -->
-  <div id="product-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-5 shadow-2xl relative max-h-[95vh] overflow-y-auto">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-        <h4 class="font-bold text-slate-800 text-sm">إضافة منتج جديد</h4>
+  <div id="product-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-2xl relative max-h-[95vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h4 class="font-bold text-slate-800 text-sm">إضافة منتج جديد للمخزن</h4>
         <button onclick="closeModal('product-modal')" class="text-slate-400 hover:text-slate-600 w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
-      <form onsubmit="saveProduct(event)" class="space-y-3 mt-3">
+      <form onsubmit="saveProduct(event)" class="space-y-2.5 mt-2.5">
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">اسم المنتج *</label>
           <input type="text" id="p-name" required placeholder="مثال: شاي الغزالتين، صابون بدرة..." class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-medium">
@@ -1722,7 +1799,7 @@
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">الوحدة السودانية المعتمدة *</label>
-            <select id="p-unit" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700">
+            <select id="p-unit" class="w-full bg-slate-50 border border-slate-200 px-2 py-2 rounded-xl text-xs font-bold text-slate-700">
               <option value="قطعة">قطعة (حبة)</option>
               <option value="باكت">باكت (Packet)</option>
               <option value="كرتونة">كرتونة</option>
@@ -1768,16 +1845,16 @@
   </div>
 
   <!-- 4. Add Expense Modal -->
-  <div id="expense-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl relative">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+  <div id="expense-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-4 sm:p-5 shadow-2xl relative">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
         <h4 class="font-bold text-slate-800 text-sm">تسجيل مصروف جديد</h4>
         <button onclick="closeModal('expense-modal')" class="text-slate-400 hover:text-slate-600 w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
-      <form onsubmit="saveExpense(event)" class="space-y-3 mt-3">
+      <form onsubmit="saveExpense(event)" class="space-y-2.5 mt-2.5">
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">بند المصروف *</label>
           <select id="e-category" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold">
@@ -1809,16 +1886,16 @@
   </div>
 
   <!-- 5. Add Branch Modal -->
-  <div id="branch-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl relative">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+  <div id="branch-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-4 sm:p-5 shadow-2xl relative">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
         <h4 class="font-bold text-slate-800 text-sm">إضافة فرع جديد</h4>
         <button onclick="closeModal('branch-modal')" class="text-slate-400 hover:text-slate-600 w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
-      <form onsubmit="saveBranch(event)" class="space-y-3 mt-3">
+      <form onsubmit="saveBranch(event)" class="space-y-2.5 mt-2.5">
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">اسم الفرع *</label>
           <input type="text" id="b-name" required placeholder="مثال: فرع السوق الشعبي" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs">
@@ -1835,16 +1912,16 @@
   </div>
 
   <!-- 6. Add Employee Modal -->
-  <div id="employee-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl relative">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+  <div id="employee-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-4 sm:p-5 shadow-2xl relative">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
         <h4 class="font-bold text-slate-800 text-sm">إضافة موظف جديد</h4>
         <button onclick="closeModal('employee-modal')" class="text-slate-400 hover:text-slate-600 w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
-      <form onsubmit="saveEmployee(event)" class="space-y-3 mt-3">
+      <form onsubmit="saveEmployee(event)" class="space-y-2.5 mt-2.5">
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">اسم الموظف *</label>
           <input type="text" id="emp-name" required placeholder="مثال: أحمد عثمان" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs">
@@ -1873,8 +1950,8 @@
   </div>
 
   <!-- 7. Switch User Modal -->
-  <div id="switch-user-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-xs w-full p-5 shadow-2xl relative">
+  <div id="switch-user-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-xs w-full p-4 sm:p-5 shadow-2xl relative">
       <h4 class="font-bold text-slate-800 text-sm mb-3">تبديل المستخدم الحالي</h4>
       <div class="space-y-3">
         <div>
@@ -1883,8 +1960,8 @@
           </select>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">رمز المرور PIN (أو فارغ للمدير الافتراضي):</label>
-          <input type="password" id="switch-user-pin" maxlength="4" placeholder="••••" class="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl text-center font-mono text-lg font-bold">
+          <label class="block text-xs font-bold text-slate-600 mb-1">رمز المرور PIN (أو فارغ للمدير):</label>
+          <input type="password" id="switch-user-pin" maxlength="4" placeholder="••••" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-center font-mono text-lg font-bold">
         </div>
         <button onclick="confirmUserSwitch()" class="w-full bg-dark-900 hover:bg-dark-800 text-white font-bold py-2.5 rounded-xl text-xs transition">
           تسجيل الدخول
@@ -1897,24 +1974,24 @@
   </div>
 
   <!-- 8. Printable Receipt Modal -->
-  <div id="receipt-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-5 shadow-2xl relative max-h-[95vh] overflow-y-auto">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+  <div id="receipt-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-2xl relative max-h-[95vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
         <h4 class="font-bold text-slate-800 text-sm">إيصال الفاتورة</h4>
         <button onclick="closeModal('receipt-modal')" class="text-slate-400 hover:text-slate-600 w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
-      <div id="printable-receipt" class="my-3 p-4 bg-amber-50/40 border border-dashed border-slate-300 rounded-xl font-mono text-xs text-slate-800 space-y-2">
+      <div id="printable-receipt" class="my-3 p-3 bg-amber-50/40 border border-dashed border-slate-300 rounded-xl font-mono text-xs text-slate-800 space-y-2">
       </div>
 
       <div class="flex gap-2 pt-2">
-        <button onclick="window.print()" class="flex-1 bg-dark-900 hover:bg-dark-800 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+        <button onclick="window.print()" class="flex-1 bg-dark-900 hover:bg-dark-800 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
           <i class="fa-solid fa-print"></i>
           <span>طباعة الفاتورة</span>
         </button>
-        <button onclick="closeModal('receipt-modal')" class="bg-slate-100 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold">
+        <button onclick="closeModal('receipt-modal')" class="bg-slate-100 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold">
           إغلاق
         </button>
       </div>
