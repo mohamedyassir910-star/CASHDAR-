@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>كاشدار CASHDAR - لوحة التحكم المركزية (Super Admin)</title>
   
-  <!-- 1. Supabase JS Client v2 (CDN in Head) -->
+  <!-- 1. Supabase JS Client v2 (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- 2. Tailwind CSS & Google Fonts & FontAwesome -->
@@ -67,6 +67,9 @@
     .shield-glow {
       box-shadow: 0 0 35px rgba(16, 185, 129, 0.25);
     }
+    button, input, select {
+      -webkit-appearance: none;
+    }
   </style>
 
   <!-- ======================================================== -->
@@ -92,72 +95,90 @@
             console.log("[CASHDAR-ADMIN] Supabase connected successfully.");
           }
         } catch (e) {
-          console.warn("[CASHDAR-ADMIN] Supabase initialization notice:", e);
+          console.warn("[CASHDAR-ADMIN] Supabase init caught:", e);
         }
       }
       return supabase;
     }
 
-    // 3. Direct Password Verification (Works directly on button onclick)
-    function checkAdminPassword() {
+    // 3. Toggle Password Visibility (togglePassword)
+    function togglePassword() {
+      const input = document.getElementById('admin-password-input');
+      const icon = document.getElementById('toggle-pwd-icon');
+      if (!input) return;
+
+      if (input.type === 'password') {
+        input.type = 'text';
+        if (icon) {
+          icon.classList.remove('fa-eye');
+          icon.classList.add('fa-eye-slash');
+        }
+      } else {
+        input.type = 'password';
+        if (icon) {
+          icon.classList.remove('fa-eye-slash');
+          icon.classList.add('fa-eye');
+        }
+      }
+    }
+    // Global alias
+    window.togglePassword = togglePassword;
+    window.togglePasswordVisibility = togglePassword;
+
+    // 4. Check Password & Unlock Dashboard (checkPassword)
+    function checkPassword() {
       const pwdInput = document.getElementById('admin-password-input');
       const errorMsg = document.getElementById('login-error-msg');
       if (!pwdInput) return;
 
-      const entered = pwdInput.value;
+      const entered = pwdInput.value.trim();
 
       if (entered === SUPER_ADMIN_PASSWORD) {
         if (errorMsg) {
-          errorMsg.classList.add('hidden');
           errorMsg.style.display = 'none';
+          errorMsg.classList.add('hidden');
         }
         sessionStorage.setItem('cashdar_admin_auth', 'authenticated');
         unlockDashboard();
       } else {
         if (errorMsg) {
-          errorMsg.classList.remove('hidden');
           errorMsg.style.display = 'flex';
+          errorMsg.classList.remove('hidden');
         }
         pwdInput.classList.add('border-rose-500');
         pwdInput.focus();
         alert("كلمة السر غير صحيحة! يرجى إعادة المحاولة.");
       }
     }
+    // Global alias
+    window.checkPassword = checkPassword;
+    window.checkAdminPassword = checkPassword;
+    window.handleLogin = function(e) {
+      if (e) e.preventDefault();
+      checkPassword();
+      return false;
+    };
 
-    // Show/Hide Password
-    function togglePasswordVisibility() {
-      const input = document.getElementById('admin-password-input');
-      const icon = document.getElementById('toggle-pwd-icon');
-      if (!input) return;
-      if (input.type === 'password') {
-        input.type = 'text';
-        if (icon) icon.className = 'fa-solid fa-eye-slash text-xs';
-      } else {
-        input.type = 'password';
-        if (icon) icon.className = 'fa-solid fa-eye text-xs';
-      }
-    }
-
-    // Unlock Dashboard & Show Content
+    // 5. Unlock Dashboard & Show Content
     function unlockDashboard() {
       isAuthenticated = true;
       const loginOverlay = document.getElementById('login-screen');
       const appContainer = document.getElementById('admin-app');
       
       if (loginOverlay) {
-        loginOverlay.classList.add('hidden');
         loginOverlay.style.display = 'none';
+        loginOverlay.classList.add('hidden');
       }
       if (appContainer) {
-        appContainer.classList.remove('hidden');
         appContainer.style.display = 'flex';
+        appContainer.classList.remove('hidden');
       }
 
       getSupabase();
       loadAllData();
     }
 
-    // Lock Dashboard & Show Overlay
+    // 6. Lock Dashboard & Show Overlay
     function lockAdmin() {
       isAuthenticated = false;
       sessionStorage.removeItem('cashdar_admin_auth');
@@ -168,12 +189,12 @@
       const errorMsg = document.getElementById('login-error-msg');
 
       if (appContainer) {
-        appContainer.classList.add('hidden');
         appContainer.style.display = 'none';
+        appContainer.classList.add('hidden');
       }
       if (loginOverlay) {
-        loginOverlay.classList.remove('hidden');
         loginOverlay.style.display = 'flex';
+        loginOverlay.classList.remove('hidden');
       }
       if (pwdInput) {
         pwdInput.value = '';
@@ -181,17 +202,23 @@
         pwdInput.focus();
       }
       if (errorMsg) {
-        errorMsg.classList.add('hidden');
         errorMsg.style.display = 'none';
+        errorMsg.classList.add('hidden');
       }
     }
 
-    // 4. Tab Navigation
+    // 7. Tab Navigation
     function switchTab(tabId) {
       if (!isAuthenticated) return;
-      document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-pane').forEach(el => {
+        el.classList.add('hidden');
+        el.style.display = 'none';
+      });
       const target = document.getElementById(`tab-${tabId}`);
-      if (target) target.classList.remove('hidden');
+      if (target) {
+        target.classList.remove('hidden');
+        target.style.display = 'block';
+      }
 
       ['dashboard', 'stores', 'subscriptions', 'manual'].forEach(t => {
         const btn = document.getElementById(`nav-${t}`);
@@ -205,7 +232,7 @@
       });
     }
 
-    // 5. Fetch Data from Supabase
+    // 8. Fetch Data from Supabase
     async function loadAllData() {
       if (!isAuthenticated) return;
 
@@ -249,7 +276,7 @@
       }
     }
 
-    // 6. Render Dashboard KPIs
+    // 9. Render Dashboard KPIs
     function renderDashboard() {
       if (!isAuthenticated) return;
       const totalStores = allStores.length;
@@ -310,7 +337,7 @@
       `).join('');
     }
 
-    // 7. Render Stores Table
+    // 10. Render Stores Table
     function renderStoresTable() {
       if (!isAuthenticated) return;
       const tbody = document.getElementById('stores-table-body');
@@ -367,7 +394,7 @@
       });
     }
 
-    // 8. Render Subscriptions Table
+    // 11. Render Subscriptions Table
     function renderSubscriptionsTable() {
       if (!isAuthenticated) return;
       const tbody = document.getElementById('subscriptions-table-body');
@@ -419,7 +446,7 @@
       }).join('');
     }
 
-    // Direct Approval of Subscription
+    // 12. Direct Approval of Subscription
     async function approveSubscription(subscriptionId, phone, plan) {
       if (!isAuthenticated) return;
       if (!confirm(`هل أنت متأكد من اعتماد التحويل وتفعيل الترخيص لرقم (${phone})؟`)) return;
@@ -452,7 +479,7 @@
       }
     }
 
-    // Quick Activate from Stores Table
+    // 13. Quick Activate from Stores Table
     function quickActivateStore(phone) {
       if (!isAuthenticated) return;
       const manualPhoneInput = document.getElementById('manual-phone');
@@ -460,7 +487,7 @@
       switchTab('manual');
     }
 
-    // Manual Activation Form
+    // 14. Manual Activation Form
     async function handleManualActivation(e) {
       if (e) e.preventDefault();
       if (!isAuthenticated) return;
@@ -542,7 +569,7 @@
       }
     }
 
-    // Auto-check authentication and poll data
+    // Auto-check authentication on load
     window.onload = function() {
       getSupabase();
       const cachedAuth = sessionStorage.getItem('cashdar_admin_auth');
@@ -588,29 +615,31 @@
         </div>
       </div>
 
-      <!-- Password Form -->
-      <form onsubmit="event.preventDefault(); checkAdminPassword(); return false;" class="mt-6 space-y-4 relative">
+      <!-- Password Container -->
+      <div class="mt-6 space-y-4 relative">
         <div>
           <label class="block text-xs font-bold text-slate-300 mb-1.5">
             <i class="fa-solid fa-key ml-1 text-amber-400"></i> كلمة سر لوحة التحكم:
           </label>
-          <div class="relative">
+          <div class="relative flex items-center">
             <input 
               type="password" 
               id="admin-password-input" 
               required
               autofocus
-              onkeydown="if(event.key === 'Enter'){ event.preventDefault(); checkAdminPassword(); }"
+              onkeydown="if(event.key === 'Enter'){ event.preventDefault(); checkPassword(); }"
               placeholder="أدخل كلمة السر المعتمدة..." 
-              class="w-full bg-slate-950 border border-slate-700 focus:border-brand-500 pr-4 pl-10 py-3 rounded-2xl text-sm font-mono text-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 transition shadow-inner"
+              class="w-full bg-slate-950 border border-slate-700 focus:border-brand-500 pr-4 pl-12 py-3.5 rounded-2xl text-sm font-mono text-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 transition shadow-inner"
             >
+            <!-- Eye button with explicit onclick="togglePassword()" -->
             <button 
               type="button" 
-              onclick="togglePasswordVisibility()" 
-              class="absolute left-3 top-3.5 text-slate-400 hover:text-slate-200 transition"
-              title="إظهار / إخفاء كلمة السر"
+              id="toggle-pwd-btn"
+              onclick="togglePassword()" 
+              class="absolute left-3 p-2 text-slate-400 hover:text-white cursor-pointer z-20 focus:outline-none"
+              title="عرض / إخفاء كلمة السر"
             >
-              <i id="toggle-pwd-icon" class="fa-solid fa-eye text-xs"></i>
+              <i id="toggle-pwd-icon" class="fa-solid fa-eye text-sm pointer-events-none"></i>
             </button>
           </div>
           
@@ -621,16 +650,17 @@
           </div>
         </div>
 
+        <!-- Open Dashboard Button with explicit onclick="checkPassword()" -->
         <button 
           type="button" 
-          onclick="checkAdminPassword()"
+          onclick="checkPassword()"
           id="login-btn"
           class="w-full bg-gradient-to-r from-brand-600 to-emerald-500 hover:from-brand-500 hover:to-emerald-400 text-white font-bold py-3.5 rounded-2xl text-sm shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer"
         >
           <i class="fa-solid fa-unlock"></i>
-          <span>فتح لوحة التحكم والربط السحابي</span>
+          <span>فتح لوحة التحكم</span>
         </button>
-      </form>
+      </div>
 
       <!-- Security Notice -->
       <div class="mt-6 pt-4 border-t border-slate-800/80 text-center text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
@@ -972,4 +1002,4 @@
   </div>
 
 </body>
-          </html>
+  </html>
