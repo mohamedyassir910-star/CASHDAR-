@@ -5,17 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>كاشدار CASHDAR - لوحة التحكم المركزية (Super Admin)</title>
   
-  <!-- Tailwind CSS & Google Fonts (Cairo & Tajawal) -->
+  <!-- 1. Supabase JS Client v2 (CDN in Head) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- 2. Tailwind CSS & Google Fonts & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
-  
-  <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
-  <!-- Supabase JS Client v2 -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
     tailwind.config = {
@@ -70,6 +68,498 @@
       box-shadow: 0 0 35px rgba(16, 185, 129, 0.25);
     }
   </style>
+
+  <!-- ======================================================== -->
+  <!-- CORE JAVASCRIPT IN HEAD (PRE-LOADED FOR DIRECT ONCLICK)  -->
+  <!-- ======================================================== -->
+  <script>
+    // 1. Fixed Configuration
+    const SUPER_ADMIN_PASSWORD = "Mpmomimu11$";
+    const SUPABASE_URL = "https://ywhhncvtznvazhpacxte.supabase.co";
+    const SUPABASE_KEY = "Sb_publishable_m6uLiIBb_dFIvqTrOE5ojw_xMjaXmBM";
+    
+    let supabase = null;
+    let isAuthenticated = false;
+    let allStores = [];
+    let allSubscriptions = [];
+
+    // 2. Safe Supabase Initializer
+    function getSupabase() {
+      if (!supabase) {
+        try {
+          if (window.supabase && typeof window.supabase.createClient === 'function') {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            console.log("[CASHDAR-ADMIN] Supabase connected successfully.");
+          }
+        } catch (e) {
+          console.warn("[CASHDAR-ADMIN] Supabase initialization notice:", e);
+        }
+      }
+      return supabase;
+    }
+
+    // 3. Direct Password Verification (Works directly on button onclick)
+    function checkAdminPassword() {
+      const pwdInput = document.getElementById('admin-password-input');
+      const errorMsg = document.getElementById('login-error-msg');
+      if (!pwdInput) return;
+
+      const entered = pwdInput.value;
+
+      if (entered === SUPER_ADMIN_PASSWORD) {
+        if (errorMsg) {
+          errorMsg.classList.add('hidden');
+          errorMsg.style.display = 'none';
+        }
+        sessionStorage.setItem('cashdar_admin_auth', 'authenticated');
+        unlockDashboard();
+      } else {
+        if (errorMsg) {
+          errorMsg.classList.remove('hidden');
+          errorMsg.style.display = 'flex';
+        }
+        pwdInput.classList.add('border-rose-500');
+        pwdInput.focus();
+        alert("كلمة السر غير صحيحة! يرجى إعادة المحاولة.");
+      }
+    }
+
+    // Show/Hide Password
+    function togglePasswordVisibility() {
+      const input = document.getElementById('admin-password-input');
+      const icon = document.getElementById('toggle-pwd-icon');
+      if (!input) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        if (icon) icon.className = 'fa-solid fa-eye-slash text-xs';
+      } else {
+        input.type = 'password';
+        if (icon) icon.className = 'fa-solid fa-eye text-xs';
+      }
+    }
+
+    // Unlock Dashboard & Show Content
+    function unlockDashboard() {
+      isAuthenticated = true;
+      const loginOverlay = document.getElementById('login-screen');
+      const appContainer = document.getElementById('admin-app');
+      
+      if (loginOverlay) {
+        loginOverlay.classList.add('hidden');
+        loginOverlay.style.display = 'none';
+      }
+      if (appContainer) {
+        appContainer.classList.remove('hidden');
+        appContainer.style.display = 'flex';
+      }
+
+      getSupabase();
+      loadAllData();
+    }
+
+    // Lock Dashboard & Show Overlay
+    function lockAdmin() {
+      isAuthenticated = false;
+      sessionStorage.removeItem('cashdar_admin_auth');
+
+      const appContainer = document.getElementById('admin-app');
+      const loginOverlay = document.getElementById('login-screen');
+      const pwdInput = document.getElementById('admin-password-input');
+      const errorMsg = document.getElementById('login-error-msg');
+
+      if (appContainer) {
+        appContainer.classList.add('hidden');
+        appContainer.style.display = 'none';
+      }
+      if (loginOverlay) {
+        loginOverlay.classList.remove('hidden');
+        loginOverlay.style.display = 'flex';
+      }
+      if (pwdInput) {
+        pwdInput.value = '';
+        pwdInput.classList.remove('border-rose-500');
+        pwdInput.focus();
+      }
+      if (errorMsg) {
+        errorMsg.classList.add('hidden');
+        errorMsg.style.display = 'none';
+      }
+    }
+
+    // 4. Tab Navigation
+    function switchTab(tabId) {
+      if (!isAuthenticated) return;
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+      const target = document.getElementById(`tab-${tabId}`);
+      if (target) target.classList.remove('hidden');
+
+      ['dashboard', 'stores', 'subscriptions', 'manual'].forEach(t => {
+        const btn = document.getElementById(`nav-${t}`);
+        if (btn) {
+          if (t === tabId) {
+            btn.className = "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition bg-brand-600 text-white shadow-md";
+          } else {
+            btn.className = "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition text-slate-400 hover:bg-slate-800 hover:text-white";
+          }
+        }
+      });
+    }
+
+    // 5. Fetch Data from Supabase
+    async function loadAllData() {
+      if (!isAuthenticated) return;
+
+      const refreshIcon = document.getElementById('refresh-icon');
+      if (refreshIcon) refreshIcon.classList.add('fa-spin');
+
+      const client = getSupabase();
+      if (!client) {
+        if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+        return;
+      }
+
+      try {
+        // Fetch Stores
+        const { data: storesData, error: storesErr } = await client
+          .from('stores')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!storesErr && storesData) {
+          allStores = storesData;
+        }
+
+        // Fetch Subscriptions
+        const { data: subsData, error: subsErr } = await client
+          .from('subscriptions')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!subsErr && subsData) {
+          allSubscriptions = subsData;
+        }
+
+        renderDashboard();
+        renderStoresTable();
+        renderSubscriptionsTable();
+      } catch (err) {
+        console.error("Fetch data error:", err);
+      } finally {
+        if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+      }
+    }
+
+    // 6. Render Dashboard KPIs
+    function renderDashboard() {
+      if (!isAuthenticated) return;
+      const totalStores = allStores.length;
+      const pendingSubs = allSubscriptions.filter(s => s.status === 'pending');
+      const activeSubs = allSubscriptions.filter(s => s.status === 'active');
+      const totalRevenue = activeSubs.reduce((acc, s) => acc + (Number(s.amount) || 0), 0);
+
+      const kpiStores = document.getElementById('kpi-total-stores');
+      const kpiPending = document.getElementById('kpi-pending-subs');
+      const kpiActive = document.getElementById('kpi-active-subs');
+      const kpiRev = document.getElementById('kpi-revenue');
+
+      if (kpiStores) kpiStores.innerText = totalStores;
+      if (kpiPending) kpiPending.innerText = pendingSubs.length;
+      if (kpiActive) kpiActive.innerText = activeSubs.length;
+      if (kpiRev) kpiRev.innerText = `${totalRevenue.toLocaleString()} جنيه`;
+
+      const pBadge = document.getElementById('pending-badge');
+      const navPending = document.getElementById('nav-pending-count');
+      const navStores = document.getElementById('nav-stores-count');
+
+      if (pBadge) pBadge.innerText = pendingSubs.length;
+      if (navPending) navPending.innerText = pendingSubs.length;
+      if (navStores) navStores.innerText = totalStores;
+
+      // Pending Preview
+      const container = document.getElementById('dashboard-recent-subs');
+      if (!container) return;
+
+      if (pendingSubs.length === 0) {
+        container.innerHTML = `
+          <div class="py-8 text-center text-slate-500 text-xs">
+            <i class="fa-solid fa-check-circle text-2xl text-emerald-500/50 mb-2"></i>
+            <p>لا توجد طلبات تحويل معلقة حالياً. كافة العمليات معتمدة ومفعلة!</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = pendingSubs.slice(0, 5).map(sub => `
+        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-black">
+              <i class="fa-solid fa-receipt"></i>
+            </div>
+            <div>
+              <div class="font-bold text-white">${sub.store_name || 'متجر غير معنون'}</div>
+              <div class="text-[11px] text-slate-400 font-mono">هاتف: ${sub.phone} | تحويل: <b class="text-amber-400">آخر 4 أرقام (${sub.last_4_digits || '----'})</b></div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="font-mono font-bold text-emerald-400">${(Number(sub.amount) || 0).toLocaleString()} جنيه</span>
+            <button onclick="approveSubscription('${sub.id}', '${sub.phone}', '${sub.plan}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition">
+              تفعيل المتجر
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // 7. Render Stores Table
+    function renderStoresTable() {
+      if (!isAuthenticated) return;
+      const tbody = document.getElementById('stores-table-body');
+      if (!tbody) return;
+
+      if (allStores.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-500 font-sans">لا توجد متاجر مسجلة في جدول stores حتى الآن</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = allStores.map(store => {
+        let trialLabel = '';
+        if (store.trial_expiry) {
+          const diff = new Date(store.trial_expiry) - new Date();
+          if (diff > 0) {
+            const h = Math.floor(diff / (3600 * 1000));
+            trialLabel = `<span class="text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded text-[10px]">متبقي ${h} ساعة</span>`;
+          } else {
+            trialLabel = `<span class="text-rose-400 bg-rose-950/60 border border-rose-800/60 px-2 py-0.5 rounded text-[10px]">منتهية</span>`;
+          }
+        } else {
+          trialLabel = `<span class="text-slate-500">-</span>`;
+        }
+
+        const statusBadge = store.status === 'active' 
+          ? `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold">نشط ومدفوع</span>`
+          : `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold">فترة تجريبية</span>`;
+
+        return `
+          <tr class="hover:bg-slate-900/60 transition">
+            <td class="p-3.5 font-sans font-bold text-white">${store.store_name || '-'}</td>
+            <td class="p-3.5 text-slate-300 font-mono">${store.phone || '-'}</td>
+            <td class="p-3.5 font-sans text-slate-400">${store.business_type || 'عام'}</td>
+            <td class="p-3.5 font-sans text-slate-400">${store.address || '-'}</td>
+            <td class="p-3.5 text-slate-500 text-[11px]">${store.created_at ? new Date(store.created_at).toLocaleDateString('ar-EG') : '-'}</td>
+            <td class="p-3.5">${trialLabel}</td>
+            <td class="p-3.5">${statusBadge}</td>
+            <td class="p-3.5 text-center">
+              <button onclick="quickActivateStore('${store.phone}')" class="bg-slate-800 hover:bg-brand-600 hover:text-white text-slate-300 px-2.5 py-1 rounded-lg text-[11px] transition font-sans font-bold" title="تفعيل اشتراك هذا المتجر">
+                <i class="fa-solid fa-bolt ml-1 text-amber-400"></i> تفعيل
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterStoresTable() {
+      const q = document.getElementById('store-search-input').value.toLowerCase().trim();
+      const rows = document.querySelectorAll('#stores-table-body tr');
+      rows.forEach(r => {
+        const text = r.innerText.toLowerCase();
+        r.style.display = text.includes(q) ? '' : 'none';
+      });
+    }
+
+    // 8. Render Subscriptions Table
+    function renderSubscriptionsTable() {
+      if (!isAuthenticated) return;
+      const tbody = document.getElementById('subscriptions-table-body');
+      if (!tbody) return;
+
+      if (allSubscriptions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-slate-500 font-sans">لا توجد طلبات اشتراكات مسجلة</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = allSubscriptions.map(sub => {
+        const isPending = sub.status === 'pending';
+        const planText = sub.plan === 'annual' ? 'سنوي (500,000)' : 'شهري (50,000)';
+        
+        let receiptBtn = '<span class="text-slate-600 font-sans">بدون صورة</span>';
+        if (sub.receipt_image) {
+          receiptBtn = `
+            <button onclick="previewImage('${sub.receipt_image}')" class="text-brand-400 hover:text-brand-300 font-sans font-bold flex items-center gap-1">
+              <i class="fa-solid fa-image"></i> عرض الإشعار
+            </button>
+          `;
+        }
+
+        const statusBadge = isPending
+          ? `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold animate-pulse">قيد المراجعة</span>`
+          : `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold">معتمد ومفعل</span>`;
+
+        return `
+          <tr class="hover:bg-slate-900/60 transition">
+            <td class="p-3.5 text-slate-400 text-[11px]">${new Date(sub.created_at).toLocaleString('ar-EG')}</td>
+            <td class="p-3.5 font-sans font-bold text-white">${sub.store_name || '-'}</td>
+            <td class="p-3.5 text-slate-300 font-mono">${sub.phone || '-'}</td>
+            <td class="p-3.5 font-sans text-slate-300">${planText}</td>
+            <td class="p-3.5 font-mono text-emerald-400 font-bold">${(Number(sub.amount) || 0).toLocaleString()}</td>
+            <td class="p-3.5 font-mono font-black text-amber-400 text-sm tracking-widest">${sub.last_4_digits || '----'}</td>
+            <td class="p-3.5">${receiptBtn}</td>
+            <td class="p-3.5">${statusBadge}</td>
+            <td class="p-3.5 text-center">
+              ${isPending ? `
+                <button onclick="approveSubscription('${sub.id}', '${sub.phone}', '${sub.plan}')" class="bg-brand-600 hover:bg-brand-500 text-white font-sans font-bold px-3 py-1.5 rounded-lg text-xs transition shadow flex items-center gap-1.5 mx-auto">
+                  <i class="fa-solid fa-check"></i> اعتماد وتفعيل
+                </button>
+              ` : `
+                <span class="text-slate-500 font-sans text-[11px]"><i class="fa-solid fa-check-double text-emerald-500"></i> مفعّل</span>
+              `}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Direct Approval of Subscription
+    async function approveSubscription(subscriptionId, phone, plan) {
+      if (!isAuthenticated) return;
+      if (!confirm(`هل أنت متأكد من اعتماد التحويل وتفعيل الترخيص لرقم (${phone})؟`)) return;
+
+      const client = getSupabase();
+      if (!client) {
+        alert("فشل الاتصال بقاعدة البيانات.");
+        return;
+      }
+
+      try {
+        await client
+          .from('subscriptions')
+          .update({ status: 'active', approved_at: new Date().toISOString() })
+          .eq('id', subscriptionId);
+
+        const days = plan === 'annual' ? 365 : 30;
+        const expiryDate = new Date(Date.now() + days * 24 * 3600 * 1000).toISOString();
+
+        await client
+          .from('stores')
+          .update({ status: 'active', trial_expiry: expiryDate })
+          .eq('phone', phone);
+
+        alert("تم اعتماد التحويل وتفعيل المتجر بنجاح في Supabase!");
+        loadAllData();
+      } catch (err) {
+        console.error("Approval error:", err);
+        alert("حدث خطأ أثناء اعتماد الطلب في Supabase.");
+      }
+    }
+
+    // Quick Activate from Stores Table
+    function quickActivateStore(phone) {
+      if (!isAuthenticated) return;
+      const manualPhoneInput = document.getElementById('manual-phone');
+      if (manualPhoneInput) manualPhoneInput.value = phone;
+      switchTab('manual');
+    }
+
+    // Manual Activation Form
+    async function handleManualActivation(e) {
+      if (e) e.preventDefault();
+      if (!isAuthenticated) return;
+
+      const phone = document.getElementById('manual-phone').value.trim();
+      const plan = document.getElementById('manual-plan').value;
+      const days = Number(document.getElementById('manual-days').value) || 30;
+      const btn = document.getElementById('manual-submit-btn');
+
+      if (!phone) {
+        alert("يرجى إدخال رقم الهاتف.");
+        return;
+      }
+
+      const client = getSupabase();
+      if (!client) {
+        alert("فشل الاتصال بقاعدة البيانات.");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري التفعيل في Supabase...';
+
+      try {
+        const expiryDate = new Date(Date.now() + days * 24 * 3600 * 1000).toISOString();
+        const status = plan === 'trial_extend' ? 'trial' : 'active';
+
+        await client.from('stores').upsert({
+          phone: phone,
+          status: status,
+          trial_expiry: expiryDate,
+          created_at: new Date().toISOString()
+        }, { onConflict: 'phone' });
+
+        if (status === 'active') {
+          await client.from('subscriptions').insert([{
+            phone: phone,
+            plan: plan,
+            amount: plan === 'annual' ? 500000 : 50000,
+            account_transferred_to: '59189',
+            status: 'active',
+            last_4_digits: 'MANUAL',
+            created_at: new Date().toISOString()
+          }]);
+        }
+
+        alert(`تم تفعيل المتجر (${phone}) بنجاح!`);
+        document.getElementById('manual-phone').value = '';
+        loadAllData();
+        switchTab('stores');
+      } catch (err) {
+        console.error("Manual activation error:", err);
+        alert("حدث خطأ أثناء التفعيل في Supabase.");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-check-double"></i> تفعيل المتجر فورياً في Supabase';
+      }
+    }
+
+    function previewImage(src) {
+      const img = document.getElementById('preview-image-elem');
+      if (img) img.src = src;
+      openModal('image-modal');
+    }
+
+    function openModal(id) {
+      const m = document.getElementById(id);
+      if (m) {
+        m.classList.remove('hidden');
+        m.style.display = 'flex';
+      }
+    }
+
+    function closeModal(id) {
+      const m = document.getElementById(id);
+      if (m) {
+        m.classList.add('hidden');
+        m.style.display = 'none';
+      }
+    }
+
+    // Auto-check authentication and poll data
+    window.onload = function() {
+      getSupabase();
+      const cachedAuth = sessionStorage.getItem('cashdar_admin_auth');
+      if (cachedAuth === 'authenticated') {
+        unlockDashboard();
+      } else {
+        lockAdmin();
+      }
+
+      // Auto-poll data every 20 seconds only if authenticated
+      setInterval(() => {
+        if (isAuthenticated) {
+          loadAllData();
+        }
+      }, 20000);
+    };
+  </script>
 </head>
 <body class="bg-slate-900 text-slate-100 antialiased min-h-screen flex flex-col justify-between">
 
@@ -79,7 +569,7 @@
   <div id="login-screen" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
     <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl shield-glow relative overflow-hidden">
       
-      <!-- Decorative Ambient Lights -->
+      <!-- Top Decorative Glow -->
       <div class="absolute -top-16 -right-16 w-32 h-32 bg-brand-500/10 rounded-full blur-2xl"></div>
       <div class="absolute -bottom-16 -left-16 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl"></div>
 
@@ -99,7 +589,7 @@
       </div>
 
       <!-- Password Form -->
-      <form onsubmit="handleLogin(event)" class="mt-6 space-y-4 relative">
+      <form onsubmit="event.preventDefault(); checkAdminPassword(); return false;" class="mt-6 space-y-4 relative">
         <div>
           <label class="block text-xs font-bold text-slate-300 mb-1.5">
             <i class="fa-solid fa-key ml-1 text-amber-400"></i> كلمة سر لوحة التحكم:
@@ -110,6 +600,7 @@
               id="admin-password-input" 
               required
               autofocus
+              onkeydown="if(event.key === 'Enter'){ event.preventDefault(); checkAdminPassword(); }"
               placeholder="أدخل كلمة السر المعتمدة..." 
               class="w-full bg-slate-950 border border-slate-700 focus:border-brand-500 pr-4 pl-10 py-3 rounded-2xl text-sm font-mono text-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 transition shadow-inner"
             >
@@ -131,9 +622,10 @@
         </div>
 
         <button 
-          type="submit" 
+          type="button" 
+          onclick="checkAdminPassword()"
           id="login-btn"
-          class="w-full bg-gradient-to-r from-brand-600 to-emerald-500 hover:from-brand-500 hover:to-emerald-400 text-white font-bold py-3.5 rounded-2xl text-sm shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition active:scale-98"
+          class="w-full bg-gradient-to-r from-brand-600 to-emerald-500 hover:from-brand-500 hover:to-emerald-400 text-white font-bold py-3.5 rounded-2xl text-sm shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer"
         >
           <i class="fa-solid fa-unlock"></i>
           <span>فتح لوحة التحكم والربط السحابي</span>
@@ -438,7 +930,7 @@
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="block text-xs font-bold text-slate-300 mb-1">نوع الباقة *</label>
-                  <select id="manual-plan" class="w-full bg-slate-900 border border-slate-800 px-3 py-2.5 rounded-xl text-xs text-slate-200">
+                  <select id="manual-plan" class="w-full bg-slate-900 border border-slate-800 px-3.5 py-2.5 rounded-xl text-xs text-slate-200">
                     <option value="monthly">باقة شهرية (50,000 جنيه)</option>
                     <option value="annual">باقة سنوية (500,000 جنيه)</option>
                     <option value="trial_extend">تمديد تجريبي (+72 ساعة)</option>
@@ -479,429 +971,5 @@
     </div>
   </div>
 
-  <!-- JAVASCRIPT SUPER ADMIN LOGIC -->
-  <script>
-    // Configuration
-    const SUPER_ADMIN_PASSWORD = "Mpmomimu11$";
-    const SUPABASE_URL = "https://ywhhncvtznvazhpacxte.supabase.co";
-    const SUPABASE_KEY = "Sb_publishable_m6uLiIBb_dFIvqTrOE5ojw_xMjaXmBM";
-    
-    let supabase = null;
-    let isAuthenticated = false;
-    let allStores = [];
-    let allSubscriptions = [];
-
-    try {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      console.log("Super Admin Supabase client initialized.");
-    } catch(err) {
-      console.error("Supabase Init Error:", err);
-    }
-
-    // Authentication Handlers
-    function togglePasswordVisibility() {
-      const input = document.getElementById('admin-password-input');
-      const icon = document.getElementById('toggle-pwd-icon');
-      if (input.type === 'password') {
-        input.type = 'text';
-        icon.classList.replace('fa-eye', 'fa-eye-slash');
-      } else {
-        input.type = 'password';
-        icon.classList.replace('fa-eye-slash', 'fa-eye');
-      }
-    }
-
-    function handleLogin(e) {
-      if (e) e.preventDefault();
-      const pwdInput = document.getElementById('admin-password-input');
-      const errorMsg = document.getElementById('login-error-msg');
-      const enteredPassword = pwdInput.value;
-
-      if (enteredPassword === SUPER_ADMIN_PASSWORD) {
-        if (errorMsg) errorMsg.classList.add('hidden');
-        sessionStorage.setItem('cashdar_admin_auth', 'authenticated');
-        unlockDashboard();
-      } else {
-        if (errorMsg) errorMsg.classList.remove('hidden');
-        pwdInput.classList.add('border-rose-500');
-        pwdInput.value = '';
-        pwdInput.focus();
-      }
-    }
-
-    function unlockDashboard() {
-      isAuthenticated = true;
-      document.getElementById('login-screen').classList.add('hidden');
-      document.getElementById('admin-app').classList.remove('hidden');
-      loadAllData();
-    }
-
-    function lockAdmin() {
-      isAuthenticated = false;
-      sessionStorage.removeItem('cashdar_admin_auth');
-      document.getElementById('admin-app').classList.add('hidden');
-      document.getElementById('login-screen').classList.remove('hidden');
-      const pwdInput = document.getElementById('admin-password-input');
-      if (pwdInput) {
-        pwdInput.value = '';
-        pwdInput.classList.remove('border-rose-500');
-      }
-      const errorMsg = document.getElementById('login-error-msg');
-      if (errorMsg) errorMsg.classList.add('hidden');
-    }
-
-    // Switch Tabs
-    function switchTab(tabId) {
-      if (!isAuthenticated) return;
-      document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
-      const target = document.getElementById(`tab-${tabId}`);
-      if (target) target.classList.remove('hidden');
-
-      ['dashboard', 'stores', 'subscriptions', 'manual'].forEach(t => {
-        const btn = document.getElementById(`nav-${t}`);
-        if (btn) {
-          if (t === tabId) {
-            btn.className = "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition bg-brand-600 text-white shadow-md";
-          } else {
-            btn.className = "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition text-slate-400 hover:bg-slate-800 hover:text-white";
-          }
-        }
-      });
-    }
-
-    // Load Data from Supabase (Strictly gated behind isAuthenticated)
-    async function loadAllData() {
-      if (!isAuthenticated) {
-        console.warn("Blocked data loading: Super Admin not authenticated.");
-        return;
-      }
-
-      const refreshIcon = document.getElementById('refresh-icon');
-      if (refreshIcon) refreshIcon.classList.add('fa-spin');
-
-      try {
-        if (!supabase) return;
-
-        // Fetch Stores
-        const { data: storesData, error: storesErr } = await supabase
-          .from('stores')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (!storesErr && storesData) {
-          allStores = storesData;
-        }
-
-        // Fetch Subscriptions
-        const { data: subsData, error: subsErr } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (!subsErr && subsData) {
-          allSubscriptions = subsData;
-        }
-
-        renderDashboard();
-        renderStoresTable();
-        renderSubscriptionsTable();
-      } catch (err) {
-        console.error("Fetch data error:", err);
-      } finally {
-        if (refreshIcon) refreshIcon.classList.remove('fa-spin');
-      }
-    }
-
-    // Render Dashboard
-    function renderDashboard() {
-      if (!isAuthenticated) return;
-      const totalStores = allStores.length;
-      const pendingSubs = allSubscriptions.filter(s => s.status === 'pending');
-      const activeSubs = allSubscriptions.filter(s => s.status === 'active');
-      const totalRevenue = activeSubs.reduce((acc, s) => acc + (Number(s.amount) || 0), 0);
-
-      document.getElementById('kpi-total-stores').innerText = totalStores;
-      document.getElementById('kpi-pending-subs').innerText = pendingSubs.length;
-      document.getElementById('kpi-active-subs').innerText = activeSubs.length;
-      document.getElementById('kpi-revenue').innerText = `${totalRevenue.toLocaleString()} جنيه`;
-
-      // Badges
-      const pBadge = document.getElementById('pending-badge');
-      const navPending = document.getElementById('nav-pending-count');
-      const navStores = document.getElementById('nav-stores-count');
-
-      if (pBadge) pBadge.innerText = pendingSubs.length;
-      if (navPending) navPending.innerText = pendingSubs.length;
-      if (navStores) navStores.innerText = totalStores;
-
-      // Recent pending preview
-      const container = document.getElementById('dashboard-recent-subs');
-      if (!container) return;
-
-      if (pendingSubs.length === 0) {
-        container.innerHTML = `
-          <div class="py-8 text-center text-slate-500 text-xs">
-            <i class="fa-solid fa-check-circle text-2xl text-emerald-500/50 mb-2"></i>
-            <p>لا توجد طلبات تحويل معلقة حالياً. كافة العمليات معتمدة!</p>
-          </div>
-        `;
-        return;
-      }
-
-      container.innerHTML = pendingSubs.slice(0, 5).map(sub => `
-        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs">
-          <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-black">
-              <i class="fa-solid fa-receipt"></i>
-            </div>
-            <div>
-              <div class="font-bold text-white">${sub.store_name || 'متجر غير معنون'}</div>
-              <div class="text-[11px] text-slate-400 font-mono">هاتف: ${sub.phone} | تحويل: <b class="text-amber-400">آخر 4 أرقام (${sub.last_4_digits || '----'})</b></div>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="font-mono font-bold text-emerald-400">${(Number(sub.amount) || 0).toLocaleString()} جنيه</span>
-            <button onclick="approveSubscription('${sub.id}', '${sub.phone}', '${sub.plan}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition">
-              تفعيل المتجر
-            </button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    // Render Stores Table
-    function renderStoresTable() {
-      if (!isAuthenticated) return;
-      const tbody = document.getElementById('stores-table-body');
-      if (!tbody) return;
-
-      if (allStores.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-500 font-sans">لا توجد متاجر مسجلة في جدول stores حتى الآن</td></tr>`;
-        return;
-      }
-
-      tbody.innerHTML = allStores.map(store => {
-        let trialLabel = '';
-        if (store.trial_expiry) {
-          const diff = new Date(store.trial_expiry) - new Date();
-          if (diff > 0) {
-            const h = Math.floor(diff / (3600 * 1000));
-            trialLabel = `<span class="text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded text-[10px]">متبقي ${h} ساعة</span>`;
-          } else {
-            trialLabel = `<span class="text-rose-400 bg-rose-950/60 border border-rose-800/60 px-2 py-0.5 rounded text-[10px]">منتهية</span>`;
-          }
-        } else {
-          trialLabel = `<span class="text-slate-500">-</span>`;
-        }
-
-        const statusBadge = store.status === 'active' 
-          ? `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold">نشط ومدفوع</span>`
-          : `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold">فترة تجريبية</span>`;
-
-        return `
-          <tr class="hover:bg-slate-900/60 transition">
-            <td class="p-3.5 font-sans font-bold text-white">${store.store_name || '-'}</td>
-            <td class="p-3.5 text-slate-300 font-mono">${store.phone || '-'}</td>
-            <td class="p-3.5 font-sans text-slate-400">${store.business_type || 'عام'}</td>
-            <td class="p-3.5 font-sans text-slate-400">${store.address || '-'}</td>
-            <td class="p-3.5 text-slate-500 text-[11px]">${store.created_at ? new Date(store.created_at).toLocaleDateString('ar-EG') : '-'}</td>
-            <td class="p-3.5">${trialLabel}</td>
-            <td class="p-3.5">${statusBadge}</td>
-            <td class="p-3.5 text-center">
-              <button onclick="quickActivateStore('${store.phone}')" class="bg-slate-800 hover:bg-brand-600 hover:text-white text-slate-300 px-2.5 py-1 rounded-lg text-[11px] transition font-sans font-bold" title="تفعيل اشتراك هذا المتجر">
-                <i class="fa-solid fa-bolt ml-1 text-amber-400"></i> تفعيل
-              </button>
-            </td>
-          </tr>
-        `;
-      }).join('');
-    }
-
-    function filterStoresTable() {
-      const q = document.getElementById('store-search-input').value.toLowerCase().trim();
-      const rows = document.querySelectorAll('#stores-table-body tr');
-      rows.forEach(r => {
-        const text = r.innerText.toLowerCase();
-        r.style.display = text.includes(q) ? '' : 'none';
-      });
-    }
-
-    // Render Subscriptions Table
-    function renderSubscriptionsTable() {
-      if (!isAuthenticated) return;
-      const tbody = document.getElementById('subscriptions-table-body');
-      if (!tbody) return;
-
-      if (allSubscriptions.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-slate-500 font-sans">لا توجد طلبات اشتراكات مسجلة</td></tr>`;
-        return;
-      }
-
-      tbody.innerHTML = allSubscriptions.map(sub => {
-        const isPending = sub.status === 'pending';
-        const planText = sub.plan === 'annual' ? 'سنوي (500,000)' : 'شهري (50,000)';
-        
-        let receiptBtn = '<span class="text-slate-600 font-sans">بدون صورة</span>';
-        if (sub.receipt_image) {
-          receiptBtn = `
-            <button onclick="previewImage('${sub.receipt_image}')" class="text-brand-400 hover:text-brand-300 font-sans font-bold flex items-center gap-1">
-              <i class="fa-solid fa-image"></i> عرض الإشعار
-            </button>
-          `;
-        }
-
-        const statusBadge = isPending
-          ? `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold animate-pulse">قيد المراجعة</span>`
-          : `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold">معتمد ومفعل</span>`;
-
-        return `
-          <tr class="hover:bg-slate-900/60 transition">
-            <td class="p-3.5 text-slate-400 text-[11px]">${new Date(sub.created_at).toLocaleString('ar-EG')}</td>
-            <td class="p-3.5 font-sans font-bold text-white">${sub.store_name || '-'}</td>
-            <td class="p-3.5 text-slate-300 font-mono">${sub.phone || '-'}</td>
-            <td class="p-3.5 font-sans text-slate-300">${planText}</td>
-            <td class="p-3.5 font-mono text-emerald-400 font-bold">${(Number(sub.amount) || 0).toLocaleString()}</td>
-            <td class="p-3.5 font-mono font-black text-amber-400 text-sm tracking-widest">${sub.last_4_digits || '----'}</td>
-            <td class="p-3.5">${receiptBtn}</td>
-            <td class="p-3.5">${statusBadge}</td>
-            <td class="p-3.5 text-center">
-              ${isPending ? `
-                <button onclick="approveSubscription('${sub.id}', '${sub.phone}', '${sub.plan}')" class="bg-brand-600 hover:bg-brand-500 text-white font-sans font-bold px-3 py-1.5 rounded-lg text-xs transition shadow flex items-center gap-1.5 mx-auto">
-                  <i class="fa-solid fa-check"></i> اعتماد وتفعيل
-                </button>
-              ` : `
-                <span class="text-slate-500 font-sans text-[11px]"><i class="fa-solid fa-check-double text-emerald-500"></i> مفعّل</span>
-              `}
-            </td>
-          </tr>
-        `;
-      }).join('');
-    }
-
-    // Direct Approval of Subscription
-    async function approveSubscription(subscriptionId, phone, plan) {
-      if (!isAuthenticated) return;
-      if (!confirm(`هل أنت متأكد من اعتماد التحويل وتفعيل الترخيص لرقم (${phone})؟`)) return;
-
-      try {
-        // 1. Update subscription status
-        await supabase
-          .from('subscriptions')
-          .update({ status: 'active', approved_at: new Date().toISOString() })
-          .eq('id', subscriptionId);
-
-        // 2. Update store status to active
-        const days = plan === 'annual' ? 365 : 30;
-        const expiryDate = new Date(Date.now() + days * 24 * 3600 * 1000).toISOString();
-
-        await supabase
-          .from('stores')
-          .update({ status: 'active', trial_expiry: expiryDate })
-          .eq('phone', phone);
-
-        alert("تم اعتماد التحويل وتفعيل المتجر بنجاح في Supabase!");
-        loadAllData();
-      } catch (err) {
-        console.error("Approval error:", err);
-        alert("حدث خطأ أثناء اعتماد الطلب في Supabase.");
-      }
-    }
-
-    // Quick Activate from Stores Table
-    async function quickActivateStore(phone) {
-      if (!isAuthenticated) return;
-      document.getElementById('manual-phone').value = phone;
-      switchTab('manual');
-    }
-
-    // Manual Activation Form
-    async function handleManualActivation(e) {
-      e.preventDefault();
-      if (!isAuthenticated) return;
-
-      const phone = document.getElementById('manual-phone').value.trim();
-      const plan = document.getElementById('manual-plan').value;
-      const days = Number(document.getElementById('manual-days').value) || 30;
-      const btn = document.getElementById('manual-submit-btn');
-
-      if (!phone) {
-        alert("يرجى إدخال رقم الهاتف.");
-        return;
-      }
-
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري التفعيل في Supabase...';
-
-      try {
-        const expiryDate = new Date(Date.now() + days * 24 * 3600 * 1000).toISOString();
-        const status = plan === 'trial_extend' ? 'trial' : 'active';
-
-        // Upsert into stores
-        await supabase.from('stores').upsert({
-          phone: phone,
-          status: status,
-          trial_expiry: expiryDate,
-          created_at: new Date().toISOString()
-        }, { onConflict: 'phone' });
-
-        // Insert into subscriptions if paid
-        if (status === 'active') {
-          await supabase.from('subscriptions').insert([{
-            phone: phone,
-            plan: plan,
-            amount: plan === 'annual' ? 500000 : 50000,
-            account_transferred_to: '59189',
-            status: 'active',
-            last_4_digits: 'MANUAL',
-            created_at: new Date().toISOString()
-          }]);
-        }
-
-        alert(`تم تفعيل المتجر (${phone}) بنجاح!`);
-        document.getElementById('manual-phone').value = '';
-        loadAllData();
-        switchTab('stores');
-      } catch (err) {
-        console.error("Manual activation error:", err);
-        alert("حدث خطأ أثناء التفعيل في Supabase.");
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-check-double"></i> تفعيل المتجر فورياً في Supabase';
-      }
-    }
-
-    function previewImage(src) {
-      const img = document.getElementById('preview-image-elem');
-      img.src = src;
-      openModal('image-modal');
-    }
-
-    function openModal(id) {
-      const m = document.getElementById(id);
-      if (m) m.classList.remove('hidden');
-    }
-
-    function closeModal(id) {
-      const m = document.getElementById(id);
-      if (m) m.classList.add('hidden');
-    }
-
-    // Auto-check authentication and poll data
-    window.addEventListener('DOMContentLoaded', () => {
-      const cachedAuth = sessionStorage.getItem('cashdar_admin_auth');
-      if (cachedAuth === 'authenticated') {
-        unlockDashboard();
-      } else {
-        lockAdmin();
-      }
-
-      // Auto-poll data every 20 seconds only if authenticated
-      setInterval(() => {
-        if (isAuthenticated) {
-          loadAllData();
-        }
-      }, 20000);
-    });
-  </script>
 </body>
-              </html>
+          </html>
