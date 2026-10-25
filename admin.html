@@ -151,7 +151,7 @@
           <span>متصل مباشرة بقاعدة Supabase:</span>
           <span class="font-mono text-[10px] text-slate-300">ywhhncvtznvazhpacxte</span>
         </div>
-        <p class="text-slate-500 text-[10px]">يتم جلب بيانات المتاجر والاشتراكات الحقيقية فور تسجيل الدخول</p>
+        <p class="text-slate-500 text-[10px]">تصفير العدادات وجلب البيانات الحقيقية فقط من جدول stores و subscriptions</p>
       </div>
 
     </div>
@@ -296,7 +296,7 @@
         <!-- ============================================== -->
         <div id="tab-dashboard" class="tab-pane space-y-5">
           
-          <!-- Key Metrics Cards -->
+          <!-- Key Metrics Cards (Zeroed by default) -->
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div class="bg-slate-950 border border-slate-800 p-4 rounded-2xl shadow-sm">
               <div class="flex items-center justify-between text-slate-400 text-xs font-bold mb-1.5">
@@ -398,7 +398,7 @@
                   class="w-full bg-slate-900 border border-slate-800 pr-9 pl-3 py-2 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-brand-500"
                 >
               </div>
-              <button onclick="loadRealDataFromSupabase(true)" class="bg-slate-900 border border-slate-800 hover:bg-slate-800 px-3 py-2 rounded-xl text-xs text-slate-300" title="تحديث من Supabase">
+              <button onclick="loadRealDataFromSupabase(true)" class="bg-slate-900 border border-slate-800 hover:bg-slate-800 px-3 py-2 rounded-xl text-xs text-slate-300 cursor-pointer" title="تحديث من Supabase">
                 <i class="fa-solid fa-rotate-right"></i>
               </button>
             </div>
@@ -447,10 +447,10 @@
                 <h2 class="text-sm sm:text-base font-bold text-white">طلبات التحويل والاشتراكات (جدول subscriptions)</h2>
                 <span class="bg-amber-500/20 text-amber-300 text-xs px-2.5 py-0.5 rounded-full font-bold border border-amber-500/30">حساب 59189</span>
               </div>
-              <p class="text-xs text-slate-400">تحقق من آخر 4 أرقام من عملية التحويل لتأكيد وتفعيل الاشتراك مباشرة</p>
+              <p class="text-xs text-slate-400">تحقق من آخر 4 أرقام وصورة الإشعار لتأكيد وتفعيل الاشتراك مباشرة</p>
             </div>
 
-            <button onclick="loadRealDataFromSupabase(true)" class="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-2 shadow">
+            <button onclick="loadRealDataFromSupabase(true)" class="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-2 shadow cursor-pointer">
               <i class="fa-solid fa-arrows-rotate"></i>
               <span>تحديث الطلبات</span>
             </button>
@@ -466,13 +466,14 @@
                     <th class="p-3.5">اسم المتجر</th>
                     <th class="p-3.5">نوع الباقة</th>
                     <th class="p-3.5">المبلغ المطلوب</th>
-                    <th class="p-3.5">آخر 4 أرقام من التحويل</th>
+                    <th class="p-3.5">آخر 4 أرقام / الإشعار</th>
+                    <th class="p-3.5">صورة الإشعار</th>
                     <th class="p-3.5">حالة الطلب</th>
                     <th class="p-3.5 text-center">قرار التفعيل</th>
                   </tr>
                 </thead>
                 <tbody id="subscriptions-table-body" class="divide-y divide-slate-800/60 font-mono text-slate-300">
-                  <tr><td colspan="7" class="p-8 text-center text-slate-500 font-sans">جاري جلب إشعارات التحويل من Supabase...</td></tr>
+                  <tr><td colspan="8" class="p-8 text-center text-slate-500 font-sans">جاري جلب إشعارات التحويل من Supabase...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -537,6 +538,34 @@
       </main>
     </div>
 
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: RECEIPT IMAGE PREVIEW                            -->
+  <!-- ======================================================= -->
+  <div id="receiptModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-xl w-full p-5 shadow-2xl relative">
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+        <div>
+          <h4 class="font-bold text-sm text-white" id="receipt-modal-title">معاينة صورة إشعار التحويل</h4>
+          <p class="text-xs text-slate-400 font-mono" id="receipt-modal-subtitle"></p>
+        </div>
+        <button onclick="closeReceiptModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="max-h-[65vh] overflow-auto flex items-center justify-center bg-slate-950 p-2 rounded-2xl border border-slate-800/80">
+        <img id="receipt-modal-img" src="" alt="صورة إشعار التحويل" class="max-w-full rounded-xl object-contain max-h-[60vh]">
+      </div>
+
+      <div class="mt-4 flex items-center justify-between">
+        <span class="text-xs text-slate-400">إشعار محوّل لحساب (59189)</span>
+        <button onclick="closeReceiptModal()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-4 py-2 rounded-xl">
+          إغلاق المعاينة
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- ======================================================= -->
@@ -724,7 +753,7 @@
     }
 
     // =======================================================
-    // 2. FETCH REAL DATA FROM SUPABASE (NO MOCK DATA)
+    // 2. FETCH REAL DATA FROM SUPABASE (ZERO MOCK DATA)
     // =======================================================
     async function loadRealDataFromSupabase(isManualRefresh = false) {
       const refreshIcon = document.getElementById('refresh-icon');
@@ -757,8 +786,24 @@
           subsData = await directSupabaseRequest('subscriptions?select=*&order=created_at.desc');
         }
 
+        // Check if there are local offline submissions with image to merge
+        let localPending = null;
+        try {
+          const raw = localStorage.getItem('cashdar_pending_sub');
+          if (raw) localPending = JSON.parse(raw);
+        } catch (e) {}
+
         allStores = Array.isArray(storesData) ? storesData : [];
         allSubscriptions = Array.isArray(subsData) ? subsData : [];
+
+        // If a pending subscription with image is in local storage, merge receipt image if matching
+        if (localPending && localPending.receipt_image) {
+          allSubscriptions.forEach(sub => {
+            if ((sub.store_id === localPending.store_id || sub.store_name === localPending.store_name) && !sub.receipt_image) {
+              sub.receipt_image = localPending.receipt_image;
+            }
+          });
+        }
 
         // Render real data to UI
         renderDashboardView();
@@ -771,7 +816,7 @@
         }
 
         if (isManualRefresh) {
-          showToast(`تم تحديث البيانات (${allStores.length} متاجر، ${allSubscriptions.length} طلبات)`);
+          showToast(`تم تحديث البيانات (${allStores.length} متجر، ${allSubscriptions.length} طلبات)`);
         }
       } catch (err) {
         console.error('[CASHDAR] Error fetching data from Supabase:', err);
@@ -801,7 +846,7 @@
         }
       });
 
-      // Update counters
+      // Update counters (Real counters from Supabase)
       const kpiTotal = document.getElementById('kpi-total-stores');
       const kpiPending = document.getElementById('kpi-pending-subs');
       const kpiActive = document.getElementById('kpi-active-subs');
@@ -839,6 +884,8 @@
             const planText = sub.plan_type === 'annual' ? 'باقة سنوية (500k)' : 'باقة شهرية (50k)';
             const storeId = sub.store_id || '';
             const planType = sub.plan_type || 'monthly';
+            const hasImage = !!sub.receipt_image;
+
             return `
               <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs gap-3">
                 <div class="flex items-center gap-3">
@@ -854,6 +901,16 @@
                 </div>
                 <div class="flex items-center gap-2 self-end sm:self-center">
                   <span class="font-mono font-bold text-emerald-400 text-xs">${amount.toLocaleString()} جنيه</span>
+                  ${hasImage ? `
+                    <button 
+                      onclick="openReceiptModal('${sub.receipt_image}', '${sub.store_name}', '${sub.receipt_last_4_digits}')" 
+                      class="bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold px-2.5 py-1.5 rounded-lg text-xs transition flex items-center gap-1 border border-amber-500/30"
+                      title="عرض صورة الإشعار"
+                    >
+                      <i class="fa-solid fa-image"></i>
+                      <span>الإشعار</span>
+                    </button>
+                  ` : ''}
                   <button 
                     onclick="activateStore('${storeId}', '${planType}', '${sub.id}')" 
                     class="bg-brand-600 hover:bg-brand-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 cursor-pointer shadow"
@@ -874,7 +931,8 @@
         if (allStores.length === 0) {
           storesContainer.innerHTML = `
             <div class="py-6 text-center text-slate-500 text-xs">
-              لا توجد متاجر مسجلة في جدول stores حتى الآن.
+              <i class="fa-solid fa-store-slash text-2xl text-slate-600 mb-2"></i>
+              <p>لا توجد متاجر مسجلة في جدول stores حتى الآن.</p>
             </div>
           `;
         } else {
@@ -925,10 +983,11 @@
         const emptyHtml = `
           <div class="p-8 text-center text-slate-500 text-xs bg-slate-950 border border-slate-800 rounded-2xl">
             <i class="fa-solid fa-store-slash text-2xl mb-2 text-slate-600"></i>
-            <p>لا توجد أي متاجر مسجلة في قاعدة بيانات Supabase حالياً.</p>
+            <p class="font-bold text-white">لا توجد أي متاجر مسجلة في قاعدة بيانات Supabase حالياً.</p>
+            <p class="text-[11px] text-slate-500 mt-1">يتم إدراج المتاجر آلياً فور تسجيلها من تطبيق الكاشير، أو يمكنك إضافتها عبر التفعيل اليدوي السريع.</p>
           </div>
         `;
-        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-500 font-sans">لا توجد أي متاجر مسجلة في جدول stores حالياً.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-500 font-sans">لا توجد أي متاجر مسجلة في جدول stores حالياً (تم تصفير البيانات بنجاح).</td></tr>`;
         if (mobileContainer) mobileContainer.innerHTML = emptyHtml;
         return;
       }
@@ -1083,7 +1142,7 @@
       if (!tbody) return;
 
       if (allSubscriptions.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500 font-sans">لا توجد طلبات اشتراك أو إشعارات مسجلة في جدول subscriptions حالياً.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-500 font-sans">لا توجد طلبات اشتراك أو إشعارات مسجلة في جدول subscriptions حالياً (تم تصفير البيانات بنجاح).</td></tr>`;
         return;
       }
 
@@ -1093,6 +1152,7 @@
         const amount = sub.plan_type === 'annual' ? 500000 : 50000;
         const storeId = sub.store_id || '';
         const planType = sub.plan_type || 'monthly';
+        const hasImage = !!sub.receipt_image;
 
         const statusBadge = isPending
           ? `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-sans font-bold animate-pulse">قيد المراجعة</span>`
@@ -1105,6 +1165,19 @@
             <td class="p-3.5 font-sans text-slate-300">${planText}</td>
             <td class="p-3.5 font-mono text-emerald-400 font-bold">${amount.toLocaleString()}</td>
             <td class="p-3.5 font-mono font-black text-amber-400 text-sm tracking-widest">#${sub.receipt_last_4_digits || '----'}</td>
+            <td class="p-3.5">
+              ${hasImage ? `
+                <button 
+                  onclick="openReceiptModal('${sub.receipt_image}', '${sub.store_name}', '${sub.receipt_last_4_digits}')" 
+                  class="bg-slate-800 hover:bg-slate-700 text-amber-400 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-amber-500/30 cursor-pointer"
+                >
+                  <i class="fa-solid fa-image"></i>
+                  <span>معاينة الصورة</span>
+                </button>
+              ` : `
+                <span class="text-slate-500 text-[11px] font-sans">لا توجد صورة</span>
+              `}
+            </td>
             <td class="p-3.5">${statusBadge}</td>
             <td class="p-3.5 text-center">
               ${isPending ? `
@@ -1229,7 +1302,34 @@
     };
 
     // =======================================================
-    // 7. MANUAL STORE ACTIVATION FORM
+    // 7. RECEIPT MODAL PREVIEW
+    // =======================================================
+    window.openReceiptModal = function(imgSrc, storeName, last4) {
+      const modal = document.getElementById('receiptModal');
+      const img = document.getElementById('receipt-modal-img');
+      const title = document.getElementById('receipt-modal-title');
+      const subtitle = document.getElementById('receipt-modal-subtitle');
+
+      if (!modal || !img) return;
+
+      img.src = imgSrc || '';
+      if (title) title.innerText = `إشعار تحويل: ${storeName || 'متجر'}`;
+      if (subtitle) subtitle.innerText = `آخر 4 أرقام من عملية التحويل: #${last4 || '----'}`;
+
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+    };
+
+    window.closeReceiptModal = function() {
+      const modal = document.getElementById('receiptModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+      }
+    };
+
+    // =======================================================
+    // 8. MANUAL STORE ACTIVATION FORM
     // =======================================================
     async function handleManualStoreActivation(e) {
       if (e) e.preventDefault();
@@ -1307,4 +1407,4 @@
     }
   </script>
 </body>
-            </html>
+              </html>
